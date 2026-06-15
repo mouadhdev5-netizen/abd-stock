@@ -1,0 +1,31 @@
+{
+  "title": "لوحة التحكم",
+  "welcome": "مرحباً، {{name}}",
+  "today": "اليوم",
+  "this_week": "هذا الأسبوع",
+  "this_month": "هذا الشهر",
+  "this_year": "هذا العام",
+  "kpi": {
+    "total_revenue": "إجمالي الإيرادات",
+    "total_profit": "إجمالي الأرباح",
+    "inventory_value": "قيمة المخزون",
+    "total_products": "إجمالي المنتجات",
+    "total_customers": "إجمالي العملاء",
+    "total_suppliers": "إجمالي الموردين",
+    "sales_today": "مبيعات اليوم",
+    "sales_month": "مبيعات الشهر",
+    "purchases_month": "مشتريات الشهر",
+    "pending_deliveries": "التسليمات المعلقة",
+    "low_stock": "مخزون منخفض",
+    "out_of_stock": "نفاد المخزون"
+  },
+  "charts": {
+    "sales_trend": "اتجاه المبيعات",
+    "top_products": "أكثر المنتجات مبيعاً",
+    "sales_by_category": "المبيعات حسب الفئة",
+    "revenue_vs_profit": "الإيرادات مقابل الأرباح"
+  },
+  "recent_sales": "المبيعات الأخيرة",
+  "low_stock_products": "المنتجات ذات المخزون المنخفض",
+  "recent_activity": "النشاط الأخير"
+}

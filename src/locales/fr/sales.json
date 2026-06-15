@@ -1,0 +1,18 @@
+{
+  "add_products": "Ajouter des produits",
+  "search_products": "Rechercher des produits par nom ou code-barres...",
+  "stock": "Stock",
+  "cart_items": "Articles du panier",
+  "items": "Articles",
+  "cart_empty": "Le panier est vide. Recherchez des produits ci-dessus.",
+  "unit": "unité",
+  "checkout_details": "Détails de la commande",
+  "walk_in_customer": "Client de passage",
+  "payment_status": "Statut de paiement",
+  "paid": "Payé",
+  "partial": "Paiement partiel",
+  "pending": "Non payé (Crédit)",
+  "amount_paid": "Montant payé",
+  "due": "Reste",
+  "complete_sale": "Terminer la vente"
+}

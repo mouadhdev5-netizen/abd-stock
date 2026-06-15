@@ -1,0 +1,18 @@
+{
+  "add_products": "إضافة منتجات",
+  "search_products": "ابحث عن المنتجات بالاسم أو الباركود...",
+  "stock": "المخزون",
+  "cart_items": "عناصر السلة",
+  "items": "عناصر",
+  "cart_empty": "السلة فارغة. ابحث عن المنتجات أعلاه.",
+  "unit": "وحدة",
+  "checkout_details": "تفاصيل الدفع",
+  "walk_in_customer": "زبون عابر",
+  "payment_status": "حالة الدفع",
+  "paid": "مدفوع",
+  "partial": "دفع جزئي",
+  "pending": "غير مدفوع (دين)",
+  "amount_paid": "المبلغ المدفوع",
+  "due": "الباقي",
+  "complete_sale": "إتمام البيع"
+}

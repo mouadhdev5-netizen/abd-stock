@@ -1,0 +1,18 @@
+{
+  "add_products": "Add Products",
+  "search_products": "Search products by name or barcode...",
+  "stock": "Stock",
+  "cart_items": "Cart Items",
+  "items": "Items",
+  "cart_empty": "Cart is empty. Search for products above.",
+  "unit": "unit",
+  "checkout_details": "Checkout Details",
+  "walk_in_customer": "Walk-in Customer",
+  "payment_status": "Payment Status",
+  "paid": "Paid",
+  "partial": "Partial Payment",
+  "pending": "Unpaid (Credit)",
+  "amount_paid": "Amount Paid",
+  "due": "Due",
+  "complete_sale": "Complete Sale"
+}

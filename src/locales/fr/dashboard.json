@@ -1,0 +1,31 @@
+{
+  "title": "Tableau de bord",
+  "welcome": "Bienvenue, {{name}}",
+  "today": "Aujourd'hui",
+  "this_week": "Cette semaine",
+  "this_month": "Ce mois",
+  "this_year": "Cette année",
+  "kpi": {
+    "total_revenue": "Chiffre d'affaires total",
+    "total_profit": "Bénéfice total",
+    "inventory_value": "Valeur du stock",
+    "total_products": "Total produits",
+    "total_customers": "Total clients",
+    "total_suppliers": "Total fournisseurs",
+    "sales_today": "Ventes aujourd'hui",
+    "sales_month": "Ventes ce mois",
+    "purchases_month": "Achats ce mois",
+    "pending_deliveries": "Livraisons en attente",
+    "low_stock": "Stock bas",
+    "out_of_stock": "Rupture de stock"
+  },
+  "charts": {
+    "sales_trend": "Tendance des ventes",
+    "top_products": "Produits les plus vendus",
+    "sales_by_category": "Ventes par catégorie",
+    "revenue_vs_profit": "Chiffre d'affaires vs Bénéfice"
+  },
+  "recent_sales": "Ventes récentes",
+  "low_stock_products": "Produits à stock bas",
+  "recent_activity": "Activité récente"
+}

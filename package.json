@@ -2,6 +2,7 @@
   "name": "abd-stock",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "Enterprise ERP & Inventory Management System",
   "author": "ABD Stock",
   "main": "dist-electron/main.js",

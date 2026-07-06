@@ -210,7 +210,7 @@ export default function SettingsPage() {
               <div className="flex justify-end gap-4 border-t pt-4">
                 <Button type="button" variant="outline" onClick={() => form.reset()}>Discard Changes</Button>
                 <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
-                  {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {form.formState.isSubmitting ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
                   Save Settings
                 </Button>
               </div>

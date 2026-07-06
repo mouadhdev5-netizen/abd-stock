@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, FileText, Download } from 'lucide-react'
+import { Plus, Search, FileText, Download, Receipt, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -26,10 +25,10 @@ import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
 import { SalesForm } from '../components/SalesForm'
 import { RelatedExpensesModal } from '@/features/accounting/components/RelatedExpensesModal'
-import { Receipt } from 'lucide-react'
+import { InlineSearch } from '@/components/ui/InlineSearch'
 
 export default function SalesPage() {
-  const { t } = useTranslation(['common', 'sales'])
+  const { t } = useTranslation(['common', 'commerce', 'sales'])
   const { company } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({})
@@ -154,19 +153,19 @@ export default function SalesPage() {
     <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)]">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sales Orders</h1>
-          <p className="text-muted-foreground mt-1">Manage orders, invoices, and payment statuses.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('commerce:sales.title', { defaultValue: 'Sales Orders' })}</h1>
+          <p className="text-muted-foreground mt-1">{t('commerce:sales.subtitle', { defaultValue: 'Manage orders, invoices, and payment statuses.' })}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredSales || [], 'SalesOrders')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
+            <Download className="me-2 h-4 w-4" />
+            {t('common:export', { defaultValue: 'Export' })}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Sale
+                <Plus className="me-2 h-4 w-4" />
+                {t('commerce:sales.new_sale', { defaultValue: 'New Sale' })}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col p-0">
@@ -185,14 +184,12 @@ export default function SalesPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-4 flex-shrink-0">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by order # or customer..."
-            className="pl-8 w-full"
+        <div className="w-full sm:max-w-sm">
+          <InlineSearch
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={setSearchTerm}
+            placeholder={t('commerce:sales.search_orders', { defaultValue: 'Search by order # or customer...' })}
+            onBarcodeScan={setSearchTerm}
           />
         </div>
 
@@ -209,14 +206,14 @@ export default function SalesPage() {
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
-                <TableHead>{t('labels.invoice', { defaultValue: 'Order #' })}</TableHead>
-                <TableHead>{t('labels.date')}</TableHead>
-                <TableHead>{t('labels.customer')}</TableHead>
-                <TableHead>{t('labels.status')}</TableHead>
-                <TableHead className="text-right">{t('labels.total')}</TableHead>
-                <TableHead className="text-right">{t('labels.paid')}</TableHead>
-                <TableHead className="text-right">{t('labels.due')}</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead>{t('labels.invoice', { ns: 'common', defaultValue: 'Order #' })}</TableHead>
+                <TableHead>{t('labels.date', { ns: 'common' })}</TableHead>
+                <TableHead>{t('labels.customer', { ns: 'common' })}</TableHead>
+                <TableHead>{t('labels.status', { ns: 'common' })}</TableHead>
+                <TableHead className="text-end">{t('labels.total', { ns: 'common' })}</TableHead>
+                <TableHead className="text-end">{t('labels.paid', { ns: 'common' })}</TableHead>
+                <TableHead className="text-end">{t('labels.due', { ns: 'common' })}</TableHead>
+                <TableHead className="w-[120px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,20 +237,23 @@ export default function SalesPage() {
                     </TableCell>
                     <TableCell>{formatDate(sale.order_date)}</TableCell>
                     <TableCell>
-                      {(sale.customers as any)?.name || 'Walk-in Customer'}
+                      {(sale.customers as any)?.name || t('commerce:sales.walk_in', { defaultValue: 'Walk-in Customer' })}
                     </TableCell>
                     <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-end font-medium">
                       {formatCurrency(sale.total, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right text-success">
+                    <TableCell className="text-end text-success">
                       {formatCurrency(sale.paid_amount, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right text-destructive">
+                    <TableCell className="text-end text-destructive">
                       {formatCurrency(sale.due_amount, company?.currency || 'DZD')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" disabled title="View Order (Coming Soon)">
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => setSelectedOrderForCharges(sale)} title="View Charges">
                           <Receipt className="h-4 w-4" />
                         </Button>

@@ -1,0 +1,52 @@
+so since we did the analysis there is alot of to change about the platform I want you to build a full phase to phase plan for the new version and prepare the prompt with suppoting for 3 languages english arabic and french and simpler ui
+so the platform will have two section 
+commerce and production 
+in commerce we will have 
+dashboard witch will have analytics with product based filtering same content but it will have total sales total revenue total item sold and a chart that have the costs and sales over the days (two lines) and best customers list and total items in stock (filtering should be by product)
+
+sales section same as is but need to fix the bugs and when choosing a product we can change the price (the price will effect the main dashboard of the commerce side) searching the product can be done via name or scanning the barcode and we can add a customer from this page if he does not exist
+
+product same as is but it needs the addition to be fixed in the ui to be simpler line a one page and remove the advanced features and add the variants + varaint should show better + edit product need to be fixed and variant edit as well
+a product is only active or inactive and it can be toggled directly in the visualisation (variant should have same option as a normal product)
+
+commands shoud have 3 sub sections (all data come from 
+https://documenter.getpostman.com/view/14517169/Tz5je15g and this is my api key A2f6u0zGFoV0iprNTdICKfHhnbPQa3DySQ2hiNULhlEZDn4gzArNtrgJcPUw)(commands should be showned in all these pages and be filtered or searched and it can have status changes in any time it should travel throught pages)
+create to create a command 
+en cour commands that are currently being delivered 
+suivi witch is from the api data
+commands should have a lifecycle 
+
+Inventory have two sub sections 
+stock witch is product but only see them or modify them
+suivi de stock (or logs of the stock someone added this someone added that)
+
+customer only added from the sales page and in this section we can only see them modify them and on click see their purchases (when we see their purchases we can search and filter) + we can block customers
+the ui must be simpler and we need only numbers of customer name and adress (we need also to do dept for the customers and track them in the section)
+
+charges section should make you add a charge and base it into a product for example we say we spent 20$ to make this item and choose the product (and it should effect the dashboard)
+
+now we will be in section two of the app production 
+dashboard in production it also has a production section where we have only costs and analitics like the commerce one but only with costs
+
+supplier it should be the same page but simpler and fix the bugs
+
+composent witch are like production but material to build staff should be the same as product but it is only in production (like it has nothing to do with the charges of the commerces)
+
+recepies a place where we can select as many composent with as much number and create as much products as we can like two product and track them by variant + it has charges + notes just in case 
+
+whats app section where we can scan a qr code to add our whatsapp number to send a message with it is used for adds and other like to create a custom message select it and send it to ppls or select them or select based on what buy this product and we can import serten data from a product to send it with and the url of the product just incase + history send 
+
+there is final part witch is administration
+it has the users we should add more roles and give the user his password and edit delete them
+
+------------------------------------------------------------------------------------------
+what need to fix after test
+
+to add 
+ui fix some part and pop up menus looks akward
+product toggle is broken and it ui is messed up + how can i delete a product
+charges there is a charge and like interval charges that automatically take money
+where in sales and commands it is showing that there is no products
+
+-------------------------------------------------------------------------------------------
+fixed koch ba9ilna ghil di lpart check for any bugs and fix

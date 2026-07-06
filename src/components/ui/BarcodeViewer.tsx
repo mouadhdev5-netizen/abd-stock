@@ -117,7 +117,7 @@ export function BarcodeViewer({ value, type, title }: BarcodeViewerProps) {
       </div>
 
       <Button variant="secondary" size="sm" onClick={handlePrint} className="w-full text-black border-black/20 hover:bg-slate-100">
-        <Printer className="mr-2 h-4 w-4" />
+        <Printer className="me-2 h-4 w-4" />
         Print Label
       </Button>
     </div>

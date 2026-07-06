@@ -1,0 +1,57 @@
+{
+  "users": {
+    "title": "Administration des utilisateurs",
+    "subtitle": "Gérez le personnel, les rôles et les accès par succursale.",
+    "add": "Ajouter un utilisateur",
+    "edit": "Modifier l'utilisateur",
+    "user": "Utilisateur",
+    "full_name": "Nom complet",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "password_hint": "Enregistrez ce mot de passe avant de soumettre. Vous devrez le donner à l'employé.",
+    "password_edit_placeholder": "Laisser vide pour conserver le mot de passe actuel",
+    "role": "Rôle",
+    "branch": "Succursale",
+    "all_branches": "Toutes les succursales",
+    "branch_hint": "Restreindre l'accès de l'utilisateur à une succursale spécifique.",
+    "last_login": "Dernière connexion",
+    "never_logged_in": "Jamais",
+    "status": "Statut",
+    "search": "Rechercher par nom ou e-mail...",
+    "form_desc": "Gérez les accès et les détails de l'utilisateur.",
+    "saved_desc": "L'utilisateur a été enregistré.",
+    "deactivate": "Désactiver l'utilisateur",
+    "deactivate_confirm_title": "Désactiver l'utilisateur",
+    "deactivate_confirm_desc": "Êtes-vous sûr ? Cet utilisateur sera désactivé et ne pourra plus se connecter au système.",
+    "deactivate_btn": "Oui, désactiver",
+    "deactivated": "Utilisateur désactivé",
+    "deactivated_desc": "Le compte utilisateur a été désactivé avec succès.",
+    "no_users": "Aucun utilisateur trouvé."
+  },
+  "roles": {
+    "super_admin": {
+      "title": "Super Administrateur",
+      "desc": "Accès complet à tous les modules et paramètres"
+    },
+    "commerce_manager": {
+      "title": "Responsable Commerce",
+      "desc": "Gère les ventes, les clients et les tarifs"
+    },
+    "production_manager": {
+      "title": "Responsable Production",
+      "desc": "Gère les recettes, la fabrication et les matières premières"
+    },
+    "cashier": {
+      "title": "Caissier",
+      "desc": "Gère les ventes au point de vente"
+    },
+    "warehouse_agent": {
+      "title": "Agent de Entrepôt",
+      "desc": "Gère les mouvements de stock et les inventaires"
+    },
+    "viewer": {
+      "title": "Observateur",
+      "desc": "Accès en lecture seule aux tableaux de bord et rapports"
+    }
+  }
+}

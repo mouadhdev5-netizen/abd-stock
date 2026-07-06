@@ -82,7 +82,7 @@ export function RelatedExpensesModal({
             </DialogTitle>
             {!showForm && (
               <Button onClick={() => setShowForm(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 me-2" />
                 Add Charge
               </Button>
             )}
@@ -112,7 +112,7 @@ export function RelatedExpensesModal({
                       <TableHead>Date</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-end">Amount</TableHead>
                       <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -135,10 +135,10 @@ export function RelatedExpensesModal({
                           <TableCell>{formatDate(e.expense_date)}</TableCell>
                           <TableCell>{e.category}</TableCell>
                           <TableCell>{e.description}</TableCell>
-                          <TableCell className="text-right font-medium text-destructive">
+                          <TableCell className="text-end font-medium text-destructive">
                             {formatCurrency(e.amount, company?.currency || 'DZD')}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-end">
                             <Button variant="ghost" size="icon" onClick={() => handleDelete(e.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>

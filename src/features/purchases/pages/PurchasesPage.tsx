@@ -159,13 +159,13 @@ export default function PurchasesPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredPurchases || [], 'Purchases')}>
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             {t('actions.export')}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 {t('actions.create')}
               </Button>
             </DialogTrigger>
@@ -190,7 +190,7 @@ export default function PurchasesPage() {
           <Input
             type="search"
             placeholder={t('labels.search_placeholder', { defaultValue: 'Search...' })}
-            className="pl-8 w-full"
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -215,9 +215,9 @@ export default function PurchasesPage() {
                 <TableHead>{t('labels.date')}</TableHead>
                 <TableHead>{t('labels.supplier')}</TableHead>
                 <TableHead>{t('labels.status')}</TableHead>
-                <TableHead className="text-right">{t('labels.total')}</TableHead>
-                <TableHead className="text-right">{t('labels.paid', { defaultValue: 'Paid' })}</TableHead>
-                <TableHead className="text-right">{t('labels.due', { defaultValue: 'Due' })}</TableHead>
+                <TableHead className="text-end">{t('labels.total')}</TableHead>
+                <TableHead className="text-end">{t('labels.paid', { defaultValue: 'Paid' })}</TableHead>
+                <TableHead className="text-end">{t('labels.due', { defaultValue: 'Due' })}</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -245,13 +245,13 @@ export default function PurchasesPage() {
                       {(po.suppliers as any)?.name || '-'}
                     </TableCell>
                     <TableCell>{getStatusBadge(po.status)}</TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-end font-medium">
                       {formatCurrency(po.total, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right text-success">
+                    <TableCell className="text-end text-success">
                       {formatCurrency(po.paid_amount, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right text-destructive">
+                    <TableCell className="text-end text-destructive">
                       {formatCurrency(po.due_amount, company?.currency || 'DZD')}
                     </TableCell>
                     <TableCell>

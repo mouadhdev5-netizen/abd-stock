@@ -107,7 +107,7 @@ export default function BranchesPage() {
             <Dialog>
               <DialogTrigger asChild>
                 <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="me-2 h-4 w-4" />
                   Add Branch
                 </Button>
               </DialogTrigger>
@@ -133,8 +133,8 @@ export default function BranchesPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search branches..."
-            className="pl-8 w-full"
+            placeholder={t('common:labels.search_branches', { defaultValue: 'Search branches...' })}
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -159,7 +159,7 @@ export default function BranchesPage() {
                 <TableHead>Location</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-end">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -200,7 +200,7 @@ export default function BranchesPage() {
                         <Badge variant="secondary">Inactive</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Button variant="ghost" size="sm">Edit</Button>
                     </TableCell>
                   </TableRow>

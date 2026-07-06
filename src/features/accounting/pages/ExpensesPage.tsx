@@ -117,7 +117,7 @@ export default function ExpensesPage() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 Add Charge / Expense
               </Button>
             </DialogTrigger>
@@ -148,7 +148,7 @@ export default function ExpensesPage() {
           <Input
             type="search"
             placeholder={t('labels.search_placeholder', { defaultValue: 'Search...' })}
-            className="pl-8 w-full"
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -174,7 +174,7 @@ export default function ExpensesPage() {
                 <TableHead>{t('labels.category', { defaultValue: 'Category' })}</TableHead>
                 <TableHead>{t('labels.reference', { defaultValue: 'Linked Reference' })}</TableHead>
                 <TableHead>{t('labels.branch', { defaultValue: 'Branch' })}</TableHead>
-                <TableHead className="text-right">{t('labels.amount', { defaultValue: 'Amount' })}</TableHead>
+                <TableHead className="text-end">{t('labels.amount', { defaultValue: 'Amount' })}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,7 +218,7 @@ export default function ExpensesPage() {
                     <TableCell>
                       {expense.branches?.name || 'All'}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-destructive">
+                    <TableCell className="text-end font-medium text-destructive">
                       {formatCurrency(expense.amount, company?.currency || 'DZD')}
                     </TableCell>
                   </TableRow>
@@ -237,7 +237,7 @@ export default function ExpensesPage() {
               onPageSizeChange={setPageSize}
             />
           </div>
-          <span className="font-semibold whitespace-nowrap ml-4">
+          <span className="font-semibold whitespace-nowrap ms-4">
             {t('labels.total', { defaultValue: 'Total' })}: {formatCurrency(
               filteredExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0,
               company?.currency || 'DZD'

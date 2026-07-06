@@ -129,7 +129,7 @@ export default function DeliveriesPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredDeliveries || [], 'Deliveries')}>
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             Export List
           </Button>
         </div>
@@ -140,8 +140,8 @@ export default function DeliveriesPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search Order # or Customer..."
-            className="pl-8 w-full"
+            placeholder={t('common:labels.search_orders', { defaultValue: 'Search Order # or Customer...' })}
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -166,7 +166,7 @@ export default function DeliveriesPage() {
                 <TableHead>Address</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-end">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -187,16 +187,16 @@ export default function DeliveriesPage() {
                     <TableCell className="max-w-[200px] truncate">{(d.customers as any)?.address || '-'}</TableCell>
                     <TableCell>{(d.customers as any)?.phone || '-'}</TableCell>
                     <TableCell>{getStatusBadge(d.status)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <div className="flex items-center justify-end gap-2">
                         {d.status === 'processing' && (
                           <Button size="sm" variant="outline" onClick={() => updateDeliveryStatus(d.id, 'shipped')}>
-                            <Truck className="mr-2 h-4 w-4" /> Ship
+                            <Truck className="me-2 h-4 w-4" /> Ship
                           </Button>
                         )}
                         {d.status === 'shipped' && (
                           <Button size="sm" onClick={() => updateDeliveryStatus(d.id, 'delivered')}>
-                            <CheckCircle className="mr-2 h-4 w-4" /> Mark Delivered
+                            <CheckCircle className="me-2 h-4 w-4" /> Mark Delivered
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" title="Delivery Note (Bon de Livraison)">

@@ -105,7 +105,7 @@ export default function WarehousesPage() {
             <Dialog>
               <DialogTrigger asChild>
                 <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="me-2 h-4 w-4" />
                   Add Warehouse
                 </Button>
               </DialogTrigger>
@@ -131,7 +131,7 @@ export default function WarehousesPage() {
           <Input
             type="search"
             placeholder="Search warehouses..."
-            className="pl-8 w-full"
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -157,13 +157,13 @@ export default function WarehousesPage() {
                 <TableHead>Location</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-end">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">Loading...</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10">{t('common:messages.loading')}</TableCell>
                 </TableRow>
               ) : filteredWarehouses?.length === 0 ? (
                 <TableRow>
@@ -197,7 +197,7 @@ export default function WarehousesPage() {
                         <Badge variant="secondary">Inactive</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Button variant="ghost" size="sm">Edit</Button>
                     </TableCell>
                   </TableRow>

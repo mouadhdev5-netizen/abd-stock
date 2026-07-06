@@ -162,7 +162,7 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2">
           <Select value={branchId} onValueChange={setBranchId}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Branches" />
+              <SelectValue placeholder={t('common:labels.all_branches')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Branches</SelectItem>
@@ -174,7 +174,7 @@ export default function ReportsPage() {
 
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Date Range" />
+              <SelectValue placeholder={t('common:labels.date_range')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7">Last 7 Days</SelectItem>
@@ -235,9 +235,9 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent className="h-[350px]">
             {isLoading ? (
-              <div className="h-full flex items-center justify-center">Loading...</div>
+              <div className="h-full flex items-center justify-center">{t('common:messages.loading')}</div>
             ) : processedData.salesTrend.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-muted-foreground">No data available</div>
+              <div className="h-full flex items-center justify-center text-muted-foreground">{t('common:messages.no_data_available')}</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={processedData.salesTrend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -261,7 +261,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent className="h-[350px]">
             {isLoading ? (
-              <div className="h-full flex items-center justify-center">Loading...</div>
+              <div className="h-full flex items-center justify-center">{t('common:messages.loading')}</div>
             ) : processedData.expenseBreakdown.length === 0 ? (
               <div className="h-full flex items-center justify-center text-muted-foreground">No expenses recorded</div>
             ) : (
@@ -294,7 +294,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent className="h-[350px]">
             {isLoading ? (
-              <div className="h-full flex items-center justify-center">Loading...</div>
+              <div className="h-full flex items-center justify-center">{t('common:messages.loading')}</div>
             ) : processedData.topProducts.length === 0 ? (
               <div className="h-full flex items-center justify-center text-muted-foreground">No sales data</div>
             ) : (

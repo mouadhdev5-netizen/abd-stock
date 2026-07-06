@@ -128,8 +128,8 @@ export default function AuditLogsPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search by entity or user..."
-            className="pl-8 w-full"
+            placeholder={t('common:labels.search_audit', { defaultValue: 'Search by entity or user...' })}
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -154,7 +154,7 @@ export default function AuditLogsPage() {
                 <TableHead>User</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Entity</TableHead>
-                <TableHead className="text-right">Details</TableHead>
+                <TableHead className="text-end">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,7 +196,7 @@ export default function AuditLogsPage() {
                         <span className="text-xs text-muted-foreground font-mono">{log.entity_id.substring(0, 8)}...</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="sm">View Diff</Button>

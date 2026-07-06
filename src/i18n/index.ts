@@ -29,7 +29,7 @@ i18n
     lng: getSavedLanguage(),
     fallbackLng: 'fr',
     defaultNS: 'common',
-    ns: ['common', 'auth', 'dashboard', 'products', 'inventory', 'sales', 'purchases', 'deliveries', 'customers', 'suppliers', 'reports', 'settings', 'users'],
+    ns: ['common', 'auth', 'dashboard', 'products', 'inventory', 'sales', 'purchases', 'deliveries', 'customers', 'suppliers', 'reports', 'settings', 'users', 'commerce', 'production', 'admin'],
     supportedLngs: ['ar', 'fr', 'en'],
     interpolation: {
       escapeValue: false,

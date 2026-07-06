@@ -141,7 +141,7 @@ export function AdvancedFilter({ filters, activeFilters, onFilterChange, onClear
                 >
                   <div
                     className={cn(
-                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                      "me-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "opacity-50 [&_svg]:invisible"
@@ -150,7 +150,7 @@ export function AdvancedFilter({ filters, activeFilters, onFilterChange, onClear
                     <Check className={cn("h-4 w-4")} />
                   </div>
                   {option.icon && (
-                    <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <option.icon className="me-2 h-4 w-4 text-muted-foreground" />
                   )}
                   <span>{option.label}</span>
                 </CommandItem>
@@ -177,7 +177,7 @@ export function AdvancedFilter({ filters, activeFilters, onFilterChange, onClear
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2 border-r pr-2 mr-2">
+      <div className="flex items-center gap-2 border-r pe-2 me-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Filters</span>
       </div>
@@ -212,7 +212,7 @@ export function AdvancedFilter({ filters, activeFilters, onFilterChange, onClear
       {activeCount > 0 && (
         <Button variant="ghost" size="sm" onClick={onClearAll} className="h-8 px-2 lg:px-3 text-destructive hover:text-destructive">
           Clear All
-          <X className="ml-2 h-4 w-4" />
+          <X className="ms-2 h-4 w-4" />
         </Button>
       )}
     </div>

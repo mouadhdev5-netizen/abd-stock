@@ -2,7 +2,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from 'react-i18next'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
 
@@ -15,10 +15,9 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form.tsx'
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea.tsx'
-import { Switch } from '@/components/ui/switch.tsx'
+import { Switch } from '@/components/ui/switch'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import {
   Select,
@@ -26,39 +25,28 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select.tsx'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx'
+} from '@/components/ui/select'
 
 const productSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
+  name: z.string().min(1, 'Name is required'),
   name_ar: z.string().optional(),
   name_fr: z.string().optional(),
-  description: z.string().optional(),
   sku: z.string().optional(),
   barcode: z.string().optional(),
   cost_price: z.coerce.number().min(0),
   sell_price: z.coerce.number().min(0),
-  wholesale_price: z.coerce.number().min(0).optional(),
-  min_sell_price: z.coerce.number().min(0).optional(),
-  tax_rate: z.coerce.number().min(0).max(100),
-  reorder_level: z.coerce.number().min(0),
-  max_stock: z.coerce.number().min(0),
-  min_stock: z.coerce.number().min(0),
-  status: z.enum(['active', 'inactive', 'discontinued']),
+  reorder_level: z.coerce.number().min(0).default(5),
+  status: z.enum(['active', 'inactive']).default('active'),
   has_variants: z.boolean().default(false),
-  has_serials: z.boolean().default(false),
-  has_batches: z.boolean().default(false),
-  track_expiry: z.boolean().default(false),
-  is_service: z.boolean().default(false),
   image_url: z.string().optional(),
   variants: z.array(z.object({
     id: z.string().optional(),
     name: z.string().min(1, 'Name is required'),
     sku: z.string().optional(),
     barcode: z.string().optional(),
-    attributes: z.record(z.string()).default({}),
     cost_price: z.coerce.number().min(0),
     sell_price: z.coerce.number().min(0),
+    status: z.enum(['active', 'inactive']).default('active'),
   })).optional()
 })
 
@@ -71,27 +59,22 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormProps) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation('commerce')
   const { company } = useAuthStore()
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: initialData || {
       name: '',
+      name_ar: '',
+      name_fr: '',
       sku: '',
       barcode: '',
       cost_price: 0,
       sell_price: 0,
-      tax_rate: 19, // Default VAT
       reorder_level: 5,
-      max_stock: 100,
-      min_stock: 0,
       status: 'active',
       has_variants: false,
-      has_serials: false,
-      has_batches: false,
-      track_expiry: false,
-      is_service: false,
       image_url: '',
       variants: [],
     },
@@ -109,13 +92,16 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
 
     try {
       const { variants, image_url, ...productData } = data
-      let productId = initialData?.id
+      let productId = initialData?.id || initialData?.product_id
 
       if (productId) {
         // Update
         const { error } = await supabase
           .from('products')
-          .update(productData as never)
+          .update({
+            ...productData,
+            thumbnail_url: image_url,
+          } as never)
           .eq('id', productId)
         if (error) throw error
       } else {
@@ -142,11 +128,12 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         }))
         const { error: variantError } = await supabase
           .from('product_variants')
-          .upsert(variantsToUpsert as any)
+          .upsert(variantsToUpsert as never)
         
         if (variantError) throw variantError
       }
 
+      alert(t('products.product_saved', { defaultValue: 'Product saved successfully' }))
       onSuccess?.()
     } catch (error: any) {
       console.error('Error saving product:', error)
@@ -156,394 +143,308 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="pricing">Pricing</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          </TabsList>
-
-          <div className="mt-4 max-h-[60vh] overflow-y-auto px-1 py-2">
-            <TabsContent value="basic" className="space-y-4">
-              <div className="flex gap-4">
-                <FormField
-                  control={form.control}
-                  name="image_url"
-                  render={({ field }) => (
-                    <FormItem className="flex-shrink-0">
-                      <FormLabel>Product Image</FormLabel>
-                      <FormControl>
-                        <ImageUpload url={field.value || ''} onUpload={field.onChange} folder="products" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex-1 space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Product Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter product name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="sku"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SKU (Stock Keeping Unit)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. PRD-001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="barcode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Barcode</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Scan or enter barcode" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Product description..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-
-            <TabsContent value="pricing" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="cost_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cost Price</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="sell_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Selling Price *</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="wholesale_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Wholesale Price</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="tax_rate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="inventory" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="reorder_level"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reorder Level (Low Stock Alert)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="max_stock"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Maximum Stock Limit</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="discontinued">Discontinued</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-
-            <TabsContent value="advanced" className="space-y-6">
-              <FormField
-                control={form.control}
-                name="is_service"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Service Product</FormLabel>
-                      <FormDescription>
-                        This product is a service and does not track physical inventory.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="has_variants"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col space-y-4 rounded-lg border p-4 shadow-sm">
-                    <div className="flex flex-row items-center justify-between">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Has Variants</FormLabel>
-                        <FormDescription>
-                          Product has multiple variations like color, size, etc.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </div>
-
-                    {hasVariants && (
-                      <div className="pt-4 border-t space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium">Variants List</h4>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => appendVariant({ name: '', sku: '', cost_price: 0, sell_price: 0, attributes: {} })}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Variant
-                          </Button>
-                        </div>
-                        {variantFields.map((field, index) => (
-                          <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-4 items-end bg-muted/20 p-4 rounded-md border border-border/50">
-                            <FormField
-                              control={form.control}
-                              name={`variants.${index}.name`}
-                              render={({ field }) => (
-                                <FormItem className="col-span-2">
-                                  <FormLabel className="text-xs font-semibold">Variant Name <span className="text-destructive">*</span></FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="e.g. Red / Size M" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`variants.${index}.sku`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs font-semibold">SKU</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="SKU-RED-M" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`variants.${index}.barcode`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs font-semibold">Barcode</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Scan..." />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`variants.${index}.cost_price`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs font-semibold">Cost Price</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`variants.${index}.sell_price`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs font-semibold">Sell Price</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <div className="col-span-2 md:col-span-6 flex justify-end mt-2">
-                              <Button 
-                                type="button" 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => removeVariant(index)}
-                              >
-                                Remove Variant
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="has_serials"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Track Serial Numbers</FormLabel>
-                      <FormDescription>
-                        Require unique serial numbers per unit.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="track_expiry"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Track Expiration</FormLabel>
-                      <FormDescription>
-                        Track expiration dates for batches.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-h-[80vh] px-4 overflow-y-auto">
+        
+        {/* ROW 1: Image & Names */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1">
+            <FormField
+              control={form.control}
+              name="image_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('products.image', { defaultValue: 'Product Image' })}</FormLabel>
+                  <FormControl>
+                    <ImageUpload url={field.value || ''} onUpload={field.onChange} folder="products" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
-        </Tabs>
+          <div className="md:col-span-3 space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('products.name', { defaultValue: 'Product Name' })} *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. MacBook Pro M3" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name_ar"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('products.name_ar', { defaultValue: 'Name (Arabic)' })}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="الاسم بالعربية" dir="rtl" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="name_fr"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('products.name_fr', { defaultValue: 'Name (French)' })}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nom du produit" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        {/* ROW 2: Codes */}
+        <div className="grid grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="sku"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.sku', { defaultValue: 'SKU' })}</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. PRD-001" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="barcode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.barcode', { defaultValue: 'Barcode' })}</FormLabel>
+                <FormControl>
+                  <Input placeholder="Scan or enter barcode" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* ROW 3: Pricing */}
+        <div className="grid grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border border-border/50">
+          <FormField
+            control={form.control}
+            name="cost_price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.cost_price', { defaultValue: 'Cost Price' })}</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.01" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sell_price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.sell_price', { defaultValue: 'Sell Price' })} *</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.01" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* ROW 4: Settings */}
+        <div className="grid grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="reorder_level"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.reorder_level', { defaultValue: 'Reorder Level' })}</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('products.status', { defaultValue: 'Status' })}</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">{t('products.active', { defaultValue: 'Active' })}</SelectItem>
+                    <SelectItem value="inactive">{t('products.inactive', { defaultValue: 'Inactive' })}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* ROW 5: Variants Toggle & Section */}
+        <div className="border-t pt-6">
+          <FormField
+            control={form.control}
+            name="has_variants"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-card">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base font-semibold">{t('products.variants', { defaultValue: 'Variants' })}</FormLabel>
+                  <FormDescription>
+                    Enable if this product has multiple sizes, colors, etc.
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {hasVariants && (
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-muted-foreground">{t('products.variants', { defaultValue: 'Variants List' })}</h4>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => appendVariant({ name: '', sku: '', barcode: '', cost_price: 0, sell_price: 0, status: 'active' })}
+                >
+                  <Plus className="h-4 w-4 me-2" />
+                  {t('products.add_variant', { defaultValue: 'Add Variant' })}
+                </Button>
+              </div>
+              
+              {variantFields.length === 0 ? (
+                <div className="text-center py-8 border border-dashed rounded-lg text-sm text-muted-foreground">
+                  {t('products.no_variants', { defaultValue: 'No variants added yet.' })}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {variantFields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-12 gap-3 items-end bg-muted/10 p-3 rounded-lg border">
+                      <div className="col-span-3">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t('products.variant_name', { defaultValue: 'Variant Name' })} *</FormLabel>
+                              <FormControl><Input className="h-8 text-sm" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.sku`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t('products.sku', { defaultValue: 'SKU' })}</FormLabel>
+                              <FormControl><Input className="h-8 text-sm" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.barcode`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t('products.barcode', { defaultValue: 'Barcode' })}</FormLabel>
+                              <FormControl><Input className="h-8 text-sm" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.cost_price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t('products.cost_price', { defaultValue: 'Cost' })}</FormLabel>
+                              <FormControl><Input type="number" className="h-8 text-sm" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.sell_price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t('products.sell_price', { defaultValue: 'Price' })}</FormLabel>
+                              <FormControl><Input type="number" className="h-8 text-sm" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="col-span-1 flex justify-end pb-0.5">
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => removeVariant(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t mt-8 flex justify-end gap-3 z-10">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              {t('actions.cancel', { ns: 'common' })}
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              {t('common.cancel', { defaultValue: 'Cancel' })}
             </Button>
           )}
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {initialData ? 'Update Product' : 'Create Product'}
+            {form.formState.isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+            {initialData ? t('common.update', { defaultValue: 'Update' }) : t('common.save', { defaultValue: 'Save' })}
           </Button>
         </div>
       </form>

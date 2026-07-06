@@ -1046,7 +1046,7 @@ export type Database = {
 }
 
 // Enum types
-export type UserRole = 'super_admin' | 'moderator' | 'employee'
+export type UserRole = 'super_admin' | 'moderator' | 'employee' | 'commerce_manager'
 export type ProductStatus = 'active' | 'inactive' | 'discontinued'
 export type UnitType = 'piece' | 'kg' | 'gram' | 'liter' | 'ml' | 'meter' | 'cm' | 'box' | 'pack' | 'dozen' | 'set'
 export type MovementType = 'purchase' | 'sale' | 'adjustment' | 'transfer_in' | 'transfer_out' | 'return_in' | 'return_out' | 'count_adjustment' | 'initial'

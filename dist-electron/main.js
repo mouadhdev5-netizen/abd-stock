@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const electron = require("electron");
-const node_url = require("node:url");
-const path = require("node:path");
-var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
-const __dirname$1 = path.dirname(node_url.fileURLToPath(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("main.js", document.baseURI).href));
+import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
@@ -12,7 +9,7 @@ const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win;
 function createWindow() {
-  win = new electron.BrowserWindow({
+  win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1100,
@@ -48,54 +45,56 @@ function createWindow() {
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https:")) {
-      electron.shell.openExternal(url);
+      shell.openExternal(url);
     }
     return { action: "deny" };
   });
 }
-electron.app.on("window-all-closed", () => {
+app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    electron.app.quit();
+    app.quit();
     win = null;
   }
 });
-electron.app.on("activate", () => {
-  if (electron.BrowserWindow.getAllWindows().length === 0) {
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-electron.app.whenReady().then(() => {
+app.whenReady().then(() => {
   createWindow();
   setupIPC();
 });
 function setupIPC() {
-  electron.ipcMain.handle("show-notification", (_event, { title, body }) => {
-    const notification = new electron.Notification({
+  ipcMain.handle("show-notification", (_event, { title, body }) => {
+    const notification = new Notification({
       title,
       body
     });
     notification.show();
   });
-  electron.ipcMain.handle("get-app-version", () => {
-    return electron.app.getVersion();
+  ipcMain.handle("get-app-version", () => {
+    return app.getVersion();
   });
-  electron.ipcMain.handle("minimize-window", () => {
+  ipcMain.handle("minimize-window", () => {
     win == null ? void 0 : win.minimize();
   });
-  electron.ipcMain.handle("maximize-window", () => {
+  ipcMain.handle("maximize-window", () => {
     if (win == null ? void 0 : win.isMaximized()) {
       win.restore();
     } else {
       win == null ? void 0 : win.maximize();
     }
   });
-  electron.ipcMain.handle("close-window", () => {
+  ipcMain.handle("close-window", () => {
     win == null ? void 0 : win.close();
   });
-  electron.ipcMain.handle("is-maximized", () => {
+  ipcMain.handle("is-maximized", () => {
     return (win == null ? void 0 : win.isMaximized()) ?? false;
   });
 }
-exports.MAIN_DIST = MAIN_DIST;
-exports.RENDERER_DIST = RENDERER_DIST;
-exports.VITE_DEV_SERVER_URL = VITE_DEV_SERVER_URL;
+export {
+  MAIN_DIST,
+  RENDERER_DIST,
+  VITE_DEV_SERVER_URL
+};

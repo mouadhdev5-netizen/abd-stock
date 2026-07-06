@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Filter, Download, Star, UserPlus } from 'lucide-react'
+import { Search, Download, Lock, Unlock, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
@@ -15,37 +15,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { formatCurrency } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export'
-import { CustomerForm } from '../components/CustomerForm'
 
-import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
+import { CustomerDetailPanel } from '../components/CustomerDetailPanel'
 
 export default function CustomersPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common', 'commerce'])
   const { company } = useAuthStore()
+  
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeFilters, setActiveFilters] = useState<Record<string, any>>({})
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'active' | 'blocked' | 'debt'>('all')
   
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(20)
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+
+  const [blockConfirmData, setBlockConfirmData] = useState<{ id: string, name: string, is_blocked: boolean } | null>(null)
+  const [isBlocking, setIsBlocking] = useState(false)
 
   const { data: customers, isLoading, refetch } = useQuery({
     queryKey: ['customers', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
 
-      // Fetch customers
       const { data: customersData, error: custError } = await supabase
         .from('customers')
         .select('*')
@@ -54,7 +51,7 @@ export default function CustomersPage() {
 
       if (custError) throw custError
 
-      // Fetch order counts to determine if "Returning Customer"
+      // Fetch order counts
       const { data: orderCounts, error: orderError } = await supabase
         .from('sales_orders')
         .select('customer_id')
@@ -63,7 +60,6 @@ export default function CustomersPage() {
 
       if (orderError) throw orderError
 
-      // Map counts
       const counts = (orderCounts as any[]).reduce((acc: Record<string, number>, order) => {
         if (order.customer_id) {
           acc[order.customer_id] = (acc[order.customer_id] || 0) + 1
@@ -74,124 +70,122 @@ export default function CustomersPage() {
       return (customersData as any[]).map(c => ({
         ...c,
         orderCount: counts[c.id] || 0,
-        isReturning: (counts[c.id] || 0) > 1, // More than 1 order means they came back!
       }))
     },
     enabled: !!company?.id,
   })
 
-  const filters: FilterConfig[] = [
-    {
-      key: 'type',
-      title: 'Customer Type',
-      options: [
-        { label: 'Returning', value: 'returning' },
-        { label: 'New', value: 'new' },
-        { label: 'Has Debt', value: 'debt' }
-      ]
-    },
-    {
-      key: 'credit',
-      title: 'Credit Balance',
-      type: 'number_range'
-    }
-  ]
-
   // Filtering
-  const filteredCustomers = customers?.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (c.phone && c.phone.includes(searchTerm))
-    
-    let matchesType = true
-    let matchesCredit = true
+  const filteredCustomers = useMemo(() => {
+    return customers?.filter(c => {
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (c.phone && c.phone.includes(searchTerm))
+      
+      let matchesFilter = true
+      if (filter === 'active') matchesFilter = !c.is_blocked
+      if (filter === 'blocked') matchesFilter = !!c.is_blocked
+      if (filter === 'debt') matchesFilter = c.credit_balance > 0
 
-    if (activeFilters['type']?.length > 0) {
-      const typeFilters = activeFilters['type']
-      if (typeFilters.includes('returning') && !c.isReturning) matchesType = false
-      if (typeFilters.includes('new') && c.isReturning) matchesType = false
-      if (typeFilters.includes('debt') && c.credit_balance <= 0) matchesType = false
-    }
+      return matchesSearch && matchesFilter
+    }) || []
+  }, [customers, searchTerm, filter])
 
-    if (activeFilters['credit']) {
-      const { min, max } = activeFilters['credit']
-      if (min !== undefined && c.credit_balance < min) matchesCredit = false
-      if (max !== undefined && c.credit_balance > max) matchesCredit = false
-    }
-
-    return matchesSearch && matchesType && matchesCredit
-  })
-
-  const totalCount = filteredCustomers?.length || 0
+  const totalCount = filteredCustomers.length
   const paginatedCustomers = useMemo(() => {
-    if (!filteredCustomers) return []
     const start = pageIndex * pageSize
-    const end = start + pageSize
-    return filteredCustomers.slice(start, end)
+    return filteredCustomers.slice(start, start + pageSize)
   }, [filteredCustomers, pageIndex, pageSize])
 
   useEffect(() => {
     setPageIndex(0)
-  }, [searchTerm, activeFilters])
+  }, [searchTerm, filter])
+
+  const handleRowClick = (id: string) => {
+    setSelectedCustomerId(id)
+    setIsPanelOpen(true)
+  }
+
+  const handleToggleBlock = async () => {
+    if (!blockConfirmData) return
+    setIsBlocking(true)
+    try {
+      const newStatus = !blockConfirmData.is_blocked
+      const { error } = await supabase
+        .from('customers')
+        .update({ is_blocked: newStatus } as never)
+        .eq('id', blockConfirmData.id)
+
+      if (error) throw error
+      
+      refetch()
+    } catch (err: any) {
+      alert(`Failed to change block status: ${err.message}`)
+    } finally {
+      setIsBlocking(false)
+      setBlockConfirmData(null)
+    }
+  }
 
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)]">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('nav.customers')}</h1>
-          <p className="text-muted-foreground mt-1">Manage your clients and track their loyalty.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('nav.customers', { defaultValue: 'Customers' })}</h1>
+          <p className="text-muted-foreground mt-1">Manage your clients, view their purchases and track debt.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredCustomers || [], 'Customers')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
+            <Download className="me-2 h-4 w-4" />
+            {t('actions.export', { defaultValue: 'Export' })}
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                {t('actions.add')}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Add New Customer</DialogTitle>
-                <DialogDescription>
-                  Enter the customer's details, contact information, and credit limits.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto py-4">
-                <CustomerForm 
-                  onSuccess={() => {
-                    setIsDialogOpen(false);
-                    refetch();
-                  }} 
-                  onCancel={() => setIsDialogOpen(false)} 
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 flex-shrink-0">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder={t('labels.search_placeholder')}
-            className="pl-8 w-full"
+            placeholder={t('labels.search_placeholder', { defaultValue: 'Search by name or phone...' })}
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-          <AdvancedFilter 
-            filters={filters}
-            activeFilters={activeFilters}
-            onFilterChange={(key, values) => setActiveFilters(prev => ({ ...prev, [key]: values }))}
-            onClearAll={() => setActiveFilters({})}
-          />
+        <div className="flex bg-muted/50 p-1 rounded-md border text-sm overflow-x-auto">
+          <Button 
+            variant={filter === 'all' ? 'secondary' : 'ghost'} 
+            size="sm" 
+            onClick={() => setFilter('all')}
+            className="h-8 whitespace-nowrap"
+          >
+            All
+          </Button>
+          <Button 
+            variant={filter === 'active' ? 'secondary' : 'ghost'} 
+            size="sm" 
+            onClick={() => setFilter('active')}
+            className="h-8 whitespace-nowrap"
+          >
+            Active
+          </Button>
+          <Button 
+            variant={filter === 'blocked' ? 'secondary' : 'ghost'} 
+            size="sm" 
+            onClick={() => setFilter('blocked')}
+            className="h-8 whitespace-nowrap"
+          >
+            Blocked
+          </Button>
+          <Button 
+            variant={filter === 'debt' ? 'secondary' : 'ghost'} 
+            size="sm" 
+            onClick={() => setFilter('debt')}
+            className="h-8 whitespace-nowrap"
+          >
+            Has Debt
+          </Button>
         </div>
       </div>
 
@@ -200,54 +194,77 @@ export default function CustomersPage() {
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
-                <TableHead>{t('labels.name')}</TableHead>
-                <TableHead>{t('labels.phone')}</TableHead>
-                <TableHead>{t('labels.orders', { defaultValue: 'Orders' })}</TableHead>
-                <TableHead>{t('labels.status')} / {t('labels.loyalty', { defaultValue: 'Loyalty' })}</TableHead>
-                <TableHead className="text-right">{t('labels.credit_balance', { defaultValue: 'Credit Balance' })}</TableHead>
+                <TableHead>{t('labels.name', { defaultValue: 'Name' })}</TableHead>
+                <TableHead>{t('labels.phone', { defaultValue: 'Phone' })}</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead className="text-center">{t('labels.orders', { defaultValue: 'Orders' })}</TableHead>
+                <TableHead className="text-end">Debt</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
-                    {t('labels.loading')}
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
-              ) : filteredCustomers?.length === 0 ? (
+              ) : filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
-                    {t('labels.no_data')}
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    {t('labels.no_data', { defaultValue: 'No customers found.' })}
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedCustomers?.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
-                    <TableCell>{customer.orderCount}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {!customer.is_active && (
-                          <Badge variant="secondary">{t('status.inactive')}</Badge>
-                        )}
-                        {customer.isReturning && (
-                          <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20">
-                            <Star className="h-3 w-3 mr-1 fill-yellow-500 text-yellow-500" />
-                            {t('labels.returning', { defaultValue: 'Returning' })}
-                          </Badge>
-                        )}
-                        {!customer.isReturning && customer.orderCount === 1 && (
-                          <Badge variant="outline" className="border-blue-500/50 text-blue-600 bg-blue-50 dark:bg-blue-950/20">
-                            {t('labels.new', { defaultValue: 'New' })}
-                          </Badge>
-                        )}
-                      </div>
+                paginatedCustomers.map((customer) => (
+                  <TableRow 
+                    key={customer.id} 
+                    className={`cursor-pointer hover:bg-muted/50 ${customer.is_blocked ? 'bg-destructive/5 hover:bg-destructive/10' : ''}`}
+                    onClick={() => handleRowClick(customer.id)}
+                  >
+                    <TableCell className="font-medium text-primary">
+                      {customer.name}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-destructive">
-                      {customer.credit_balance > 0 
-                        ? formatCurrency(customer.credit_balance, company?.currency || 'DZD') 
-                        : '-'}
+                    <TableCell>{customer.phone || '-'}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={customer.address}>
+                      {customer.address || '-'}
+                    </TableCell>
+                    <TableCell className="text-center font-medium">
+                      {customer.orderCount}
+                    </TableCell>
+                    <TableCell className="text-end font-medium">
+                      {customer.credit_balance > 0 ? (
+                        <span className="text-destructive font-bold">{formatCurrency(customer.credit_balance, company?.currency || 'DZD')}</span>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {customer.is_blocked ? (
+                        <Badge variant="destructive">Blocked</Badge>
+                      ) : (
+                        <Badge variant="success">Active</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-end" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setBlockConfirmData({
+                            id: customer.id,
+                            name: customer.name,
+                            is_blocked: customer.is_blocked
+                          })
+                        }}
+                      >
+                        {customer.is_blocked ? (
+                          <Unlock className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        ) : (
+                          <Lock className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        )}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -265,6 +282,30 @@ export default function CustomersPage() {
           />
         </div>
       </div>
+
+      <CustomerDetailPanel 
+        customerId={selectedCustomerId}
+        isOpen={isPanelOpen}
+        onClose={() => {
+          setIsPanelOpen(false)
+          setSelectedCustomerId(null)
+        }}
+        onUpdate={refetch}
+      />
+
+      <ConfirmDialog
+        open={!!blockConfirmData}
+        onCancel={() => setBlockConfirmData(null)}
+        onConfirm={handleToggleBlock}
+        title={blockConfirmData?.is_blocked ? "Unblock Customer?" : "Block Customer?"}
+        description={blockConfirmData?.is_blocked 
+          ? `Are you sure you want to unblock ${blockConfirmData?.name}? They will be able to make purchases again.`
+          : `Are you sure you want to block ${blockConfirmData?.name}? They won't be selectable in new sales.`
+        }
+        confirmLabel={blockConfirmData?.is_blocked ? "Yes, Unblock" : "Yes, Block"}
+        confirmVariant={blockConfirmData?.is_blocked ? "default" : "destructive"}
+        isLoading={isBlocking}
+      />
     </div>
   )
 }

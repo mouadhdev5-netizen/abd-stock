@@ -56,6 +56,7 @@ interface PurchaseFormProps {
 }
 
 export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
+  const { t } = useTranslation(['common'])
   const { company } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
 
@@ -215,8 +216,8 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products by name..."
-                className="pl-8"
+                placeholder={t('common:labels.search_placeholder', { defaultValue: 'Search products by name...' })}
+                className="ps-8"
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
               />
@@ -305,7 +306,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select supplier" />
+                        <SelectValue placeholder={t('common:labels.select_supplier', { defaultValue: 'Select supplier' })} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -335,7 +336,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
                   <FormItem className="flex justify-between items-center space-y-0">
                     <FormLabel className="text-sm font-normal text-muted-foreground">Discount</FormLabel>
                     <FormControl>
-                      <Input type="number" className="w-24 h-8 text-right" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <Input type="number" className="w-24 h-8 text-end" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -360,7 +361,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
                     }} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('common:labels.select_status', { defaultValue: 'Select status' })} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -382,7 +383,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
                     <FormControl>
                       <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
                     </FormControl>
-                    <div className="text-xs text-right mt-1">
+                    <div className="text-xs text-end mt-1">
                       Due: <span className="font-semibold text-destructive">{formatCurrency(dueAmount, company?.currency || 'DZD')}</span>
                     </div>
                   </FormItem>
@@ -398,7 +399,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
               </Button>
             )}
             <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting || fields.length === 0}>
-              {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {form.formState.isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
               Create PO
             </Button>
           </div>

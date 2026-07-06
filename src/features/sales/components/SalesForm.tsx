@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Plus, Trash2, Search, Barcode } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
 
@@ -18,7 +18,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -28,12 +27,16 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
+import { InlineSearch } from '@/components/ui/InlineSearch'
+import { QuickAddCustomerForm } from './QuickAddCustomerForm'
+import { generateInvoicePDF } from '@/lib/export'
 
 const salesItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
   product_name: z.string(),
   quantity: z.coerce.number().min(1),
   unit_price: z.coerce.number().min(0),
+  catalog_price: z.coerce.number().min(0),
   discount: z.coerce.number().min(0).default(0),
   tax_rate: z.coerce.number().min(0).default(19),
 })
@@ -57,12 +60,13 @@ interface SalesFormProps {
 }
 
 export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common', 'commerce'])
   const { company } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
+  const [showAddCustomer, setShowAddCustomer] = useState(false)
 
   // Fetch Customers
-  const { data: customers } = useQuery<any[]>({
+  const { data: customers, refetch: refetchCustomers } = useQuery<any[]>({
     queryKey: ['customers', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
@@ -125,7 +129,8 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     })
 
     const grand = sub + tax - discountTotal
-    const due = grand - amountPaid
+    let due = grand - amountPaid
+    if (due < 0) due = 0 // Never show negative due
 
     return {
       subtotal: sub,
@@ -135,8 +140,16 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     }
   }, [formItems, discountTotal, amountPaid])
 
-  // Update paid amount automatically if user selects 'Paid' status (unless they manually override)
+  // Bug 1 Fix: Update paid amount automatically if user selects 'Paid' status or grandTotal changes
   const paymentStatus = form.watch('payment_status')
+  
+  useEffect(() => {
+    if (paymentStatus === 'paid') {
+      form.setValue('amount_paid', grandTotal, { shouldValidate: true })
+    } else if (paymentStatus === 'pending') {
+      form.setValue('amount_paid', 0, { shouldValidate: true })
+    }
+  }, [paymentStatus, grandTotal, form])
 
   const addProductToCart = (product: any) => {
     const existingIndex = formItems.findIndex(item => item.product_id === product.product_id)
@@ -151,6 +164,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         product_name: product.name,
         quantity: 1,
         unit_price: product.sell_price,
+        catalog_price: product.sell_price,
         discount: 0,
         tax_rate: 19, // Default VAT
       })
@@ -158,11 +172,49 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     setProductSearch('')
   }
 
+  const handleBarcodeScan = async (barcode: string) => {
+    if (!company?.id || !barcode) return
+    const { data } = await supabase
+      .from('v_product_stock')
+      .select('*')
+      .eq('company_id', company.id)
+      .eq('barcode', barcode)
+      .single()
+      
+    if (data) {
+      addProductToCart(data)
+    } else {
+      alert(t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }))
+      setProductSearch('')
+    }
+  }
+
+  const handleProductSearchSelect = async (query: string) => {
+    if (!company?.id || !query) return
+    const { data } = await supabase
+      .from('v_product_stock')
+      .select('*')
+      .eq('company_id', company.id)
+      .ilike('name', `%${query}%`)
+      .limit(1)
+      .single()
+      
+    if (data) {
+      addProductToCart(data)
+    }
+  }
+
   async function onSubmit(data: SalesOrderFormValues) {
     if (!company?.id) return
+    
+    // Bug 3 Fix: Empty cart guard
+    if (data.items.length === 0) {
+      alert(t('commerce:sales.empty_cart', { defaultValue: 'Cannot create a sale with an empty cart.' }))
+      return
+    }
 
     try {
-      // 1. Generate SO Number (Simple logic: SO-YYYYMMDD-XXXX)
+      // 1. Generate SO Number
       const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '')
       const randomStr = Math.floor(1000 + Math.random() * 9000)
       const soNumber = `SO-${dateStr}-${randomStr}`
@@ -183,7 +235,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
           paid_amount: data.amount_paid,
           due_amount: dueAmount,
           notes: data.notes,
-        } as any)
+        } as never)
         .select()
         .single()
 
@@ -202,11 +254,30 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
       const { error: itemsError } = await supabase
         .from('sales_order_items')
-        .insert(orderItems as any)
+        .insert(orderItems as never)
 
       if (itemsError) throw itemsError
 
-      // Note: Database triggers will automatically handle stock deductions and customer balances!
+      // Bug 4 Fix: Customer Debt Update
+      if (dueAmount > 0 && data.customer_id && data.customer_id !== 'none') {
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('current_balance')
+          .eq('id', data.customer_id)
+          .single()
+          
+        if (customerData) {
+          await supabase
+            .from('customers')
+            .update({ current_balance: (customerData as any).current_balance + dueAmount } as never)
+            .eq('id', data.customer_id)
+        }
+      }
+      
+      // 3.6 Receipt After Sale
+      if (window.confirm(`Sale completed! Order: ${soNumber}\n\nWould you like to print the receipt?`)) {
+        generateInvoicePDF(order as any, company, 'Sale')
+      }
       
       onSuccess?.()
     } catch (error: any) {
@@ -222,16 +293,14 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         <div className="flex-1 space-y-4">
           <div className="border rounded-md p-4 bg-muted/30">
             <h3 className="font-semibold mb-2">{t('add_products')}</h3>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={t('search_products')}
-                className="pl-8"
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-              />
-            </div>
+            <InlineSearch
+              value={productSearch}
+              onChange={(val) => {
+                setProductSearch(val)
+              }}
+              placeholder={t('commerce:sales.search_products_barcode', { defaultValue: 'Search products or scan barcode...' })}
+              onBarcodeScan={handleBarcodeScan}
+            />
             {productSearch && products && products.length > 0 && (
               <div className="mt-2 border rounded-md bg-background shadow-md max-h-48 overflow-auto">
                 {products.map(p => (
@@ -242,7 +311,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                   >
                     <div>
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">{t('stock')}: {p.total_qty_available}</div>
+                      <div className="text-xs text-muted-foreground">{t('common:labels.stock', { defaultValue: 'Stock' })}: {p.total_qty_available}</div>
                     </div>
                     <div className="font-semibold">{formatCurrency(p.sell_price, company?.currency || 'DZD')}</div>
                   </div>
@@ -262,33 +331,62 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                   {t('cart_empty')}
                 </div>
               ) : (
-                fields.map((field, index) => (
-                  <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center border-b pb-4 last:border-0 last:pb-0">
-                    <div className="flex-1">
-                      <div className="font-medium">{field.product_name}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {formatCurrency(form.getValues(`items.${index}.unit_price`), company?.currency || 'DZD')} / {t('unit')}
+                fields.map((field, index) => {
+                  const qty = form.watch(`items.${index}.quantity`) || 0
+                  const price = form.watch(`items.${index}.unit_price`) || 0
+                  const isPriceOverridden = price !== field.catalog_price
+
+                  return (
+                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center border-b pb-4 last:border-0 last:pb-0">
+                      <div className="flex-1 min-w-[150px]">
+                        <div className="font-medium text-sm line-clamp-2">{field.product_name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Subtotal: <span className="font-medium text-foreground">{formatCurrency(qty * price, company?.currency || 'DZD')}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem className="w-20">
+                              <FormLabel className="text-[10px] text-muted-foreground">{t('labels.quantity', { ns: 'common', defaultValue: 'Qty' })}</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="1" className="h-8" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unit_price`}
+                          render={({ field }) => (
+                            <FormItem className="w-28">
+                              <FormLabel className="text-[10px] text-muted-foreground">{t('commerce:sales.price_override', { defaultValue: 'Unit Price' })}</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  min="0"
+                                  className={`h-8 ${isPriceOverridden ? 'border-orange-400 focus-visible:ring-orange-400' : ''}`}
+                                  {...field} 
+                                  value={field.value ?? ''} 
+                                  onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <div className="pt-5">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.quantity`}
-                        render={({ field }) => (
-                          <FormItem className="w-20">
-                            <FormControl>
-                              <Input type="number" min="1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
@@ -305,23 +403,50 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('labels.customer', { ns: 'common' })}</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={t('walk_in_customer')} />
+                        <SelectValue placeholder={t('commerce:sales.walk_in', { defaultValue: 'Walk-in Customer' })} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="none">{t('walk_in_customer')}</SelectItem>
+                      <SelectItem value="none">{t('commerce:sales.walk_in', { defaultValue: 'Walk-in Customer' })}</SelectItem>
                       {customers?.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
+                      {/* Fixed bottom option to add new customer */}
+                      <div className="p-1 mt-1 border-t">
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          className="w-full justify-start text-sm h-8 font-normal"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setShowAddCustomer(true)
+                          }}
+                        >
+                          ➕ {t('commerce:sales.add_new_customer', { defaultValue: 'Add new customer' })}
+                        </Button>
+                      </div>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {showAddCustomer && (
+              <QuickAddCustomerForm 
+                onSuccess={(newId, newName) => {
+                  refetchCustomers().then(() => {
+                    form.setValue('customer_id', newId)
+                    setShowAddCustomer(false)
+                    alert(t('commerce:sales.customer_added', { defaultValue: 'Customer added successfully' }))
+                  })
+                }}
+                onCancel={() => setShowAddCustomer(false)}
+              />
+            )}
 
             <div className="space-y-2 pt-4 border-t">
               <div className="flex justify-between text-sm">
@@ -339,7 +464,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                   <FormItem className="flex justify-between items-center space-y-0">
                     <FormLabel className="text-sm font-normal text-muted-foreground">{t('labels.discount', { ns: 'common' })}</FormLabel>
                     <FormControl>
-                      <Input type="number" className="w-24 h-8 text-right" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <Input type="number" className="w-24 h-8 text-end" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -357,11 +482,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('payment_status')}</FormLabel>
-                    <Select onValueChange={(val) => {
-                      field.onChange(val)
-                      if (val === 'paid') form.setValue('amount_paid', grandTotal)
-                      if (val === 'pending') form.setValue('amount_paid', 0)
-                    }} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={t('labels.select', { ns: 'common' })} />
@@ -386,8 +507,10 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                     <FormControl>
                       <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
                     </FormControl>
-                    <div className="text-xs text-right mt-1">
-                      {t('due')}: <span className="font-semibold text-destructive">{formatCurrency(dueAmount, company?.currency || 'DZD')}</span>
+                    <div className="text-xs text-end mt-1 flex justify-end items-center gap-1">
+                      {t('due')}: <span className={`font-semibold ${dueAmount > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                        {formatCurrency(dueAmount, company?.currency || 'DZD')}
+                      </span>
                     </div>
                   </FormItem>
                 )}
@@ -397,12 +520,12 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
           <div className="flex justify-end gap-2 pt-4">
             {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
+              <Button type="button" variant="outline" onClick={onCancel} disabled={form.formState.isSubmitting}>
                 {t('actions.cancel', { ns: 'common' })}
               </Button>
             )}
             <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting || fields.length === 0}>
-              {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {form.formState.isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
               {t('complete_sale')}
             </Button>
           </div>

@@ -116,11 +116,11 @@ export default function InvoicesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge variant="outline" className="border-green-500/50 text-green-600 bg-green-50"><CheckCircle className="h-3 w-3 mr-1"/> Paid</Badge>
+        return <Badge variant="outline" className="border-green-500/50 text-green-600 bg-green-50"><CheckCircle className="h-3 w-3 me-1"/> Paid</Badge>
       case 'partial':
         return <Badge variant="outline" className="border-blue-500/50 text-blue-600 bg-blue-50">Partial</Badge>
       case 'unpaid':
-        return <Badge variant="destructive" className="bg-red-500/10 text-red-500"><Clock className="h-3 w-3 mr-1"/> Unpaid</Badge>
+        return <Badge variant="destructive" className="bg-red-500/10 text-red-500"><Clock className="h-3 w-3 me-1"/> Unpaid</Badge>
       case 'overdue':
         return <Badge variant="destructive">Overdue</Badge>
       default:
@@ -137,11 +137,11 @@ export default function InvoicesPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredInvoices || [], 'Invoices')}>
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             Export
           </Button>
           <Button>
-            <Receipt className="mr-2 h-4 w-4" />
+            <Receipt className="me-2 h-4 w-4" />
             Create Invoice
           </Button>
         </div>
@@ -153,7 +153,7 @@ export default function InvoicesPage() {
           <Input
             type="search"
             placeholder={t('labels.search_placeholder', { defaultValue: 'Search...' })}
-            className="pl-8 w-full"
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -179,15 +179,15 @@ export default function InvoicesPage() {
                 <TableHead>{t('labels.issue_date', { defaultValue: 'Issue Date' })}</TableHead>
                 <TableHead>{t('labels.due_date', { defaultValue: 'Due Date' })}</TableHead>
                 <TableHead>{t('labels.status', { defaultValue: 'Status' })}</TableHead>
-                <TableHead className="text-right">{t('labels.total', { defaultValue: 'Total' })}</TableHead>
-                <TableHead className="text-right">{t('labels.balance_due', { defaultValue: 'Balance Due' })}</TableHead>
-                <TableHead className="text-right">{t('labels.actions', { defaultValue: 'Actions' })}</TableHead>
+                <TableHead className="text-end">{t('labels.total', { defaultValue: 'Total' })}</TableHead>
+                <TableHead className="text-end">{t('labels.balance_due', { defaultValue: 'Balance Due' })}</TableHead>
+                <TableHead className="text-end">{t('labels.actions', { defaultValue: 'Actions' })}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">Loading...</TableCell>
+                  <TableCell colSpan={8} className="text-center py-10">{t('common:messages.loading')}</TableCell>
                 </TableRow>
               ) : filteredInvoices?.length === 0 ? (
                 <TableRow>
@@ -208,13 +208,13 @@ export default function InvoicesPage() {
                     <TableCell>{formatDate(invoice.issue_date)}</TableCell>
                     <TableCell>{formatDate(invoice.due_date)}</TableCell>
                     <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-end font-medium">
                       {formatCurrency(invoice.total_amount, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-destructive">
+                    <TableCell className="text-end font-medium text-destructive">
                       {formatCurrency(invoice.balance_due, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Button variant="ghost" size="sm">{t('actions.print', { defaultValue: 'Print' })}</Button>
                     </TableCell>
                   </TableRow>
@@ -233,7 +233,7 @@ export default function InvoicesPage() {
               onPageSizeChange={setPageSize}
             />
           </div>
-          <span className="font-semibold text-destructive whitespace-nowrap ml-4">
+          <span className="font-semibold text-destructive whitespace-nowrap ms-4">
             {t('labels.total_unpaid', { defaultValue: 'Total Unpaid' })}: {formatCurrency(
               filteredInvoices?.reduce((sum, i) => sum + Number(i.balance_due), 0) || 0,
               company?.currency || 'DZD'

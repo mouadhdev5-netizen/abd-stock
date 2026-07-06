@@ -1,6 +1,5 @@
-"use strict";
-const electron = require("electron");
-electron.contextBridge.exposeInMainWorld("ipcRenderer", withPrototype(electron.ipcRenderer));
+import { contextBridge, ipcRenderer } from "electron";
+contextBridge.exposeInMainWorld("ipcRenderer", withPrototype(ipcRenderer));
 function withPrototype(obj) {
   const protos = Object.getPrototypeOf(obj);
   for (const [key, value] of Object.entries(protos)) {
@@ -13,17 +12,17 @@ function withPrototype(obj) {
   }
   return obj;
 }
-electron.contextBridge.exposeInMainWorld("electron", {
-  showNotification: (title, body) => electron.ipcRenderer.invoke("show-notification", { title, body }),
-  getAppVersion: () => electron.ipcRenderer.invoke("get-app-version"),
-  minimize: () => electron.ipcRenderer.invoke("minimize-window"),
-  maximize: () => electron.ipcRenderer.invoke("maximize-window"),
-  close: () => electron.ipcRenderer.invoke("close-window"),
-  isMaximized: () => electron.ipcRenderer.invoke("is-maximized"),
+contextBridge.exposeInMainWorld("electron", {
+  showNotification: (title, body) => ipcRenderer.invoke("show-notification", { title, body }),
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  minimize: () => ipcRenderer.invoke("minimize-window"),
+  maximize: () => ipcRenderer.invoke("maximize-window"),
+  close: () => ipcRenderer.invoke("close-window"),
+  isMaximized: () => ipcRenderer.invoke("is-maximized"),
   on: (channel, callback) => {
-    electron.ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+    ipcRenderer.on(channel, (_event, ...args) => callback(...args));
   },
   off: (channel, callback) => {
-    electron.ipcRenderer.off(channel, callback);
+    ipcRenderer.off(channel, callback);
   }
 });

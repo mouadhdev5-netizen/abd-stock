@@ -1,0 +1,57 @@
+{
+  "users": {
+    "title": "User Administration",
+    "subtitle": "Manage staff, roles, and branch access.",
+    "add": "Add User",
+    "edit": "Edit User",
+    "user": "User",
+    "full_name": "Full Name",
+    "email": "Email Address",
+    "password": "Password",
+    "password_hint": "Save this password before submitting. You will need to give it to the employee.",
+    "password_edit_placeholder": "Leave blank to keep existing password",
+    "role": "Role",
+    "branch": "Branch",
+    "all_branches": "All Branches (Company-wide)",
+    "branch_hint": "Restrict user access to a specific branch.",
+    "last_login": "Last Login",
+    "never_logged_in": "Never",
+    "status": "Status",
+    "search": "Search by name or email...",
+    "form_desc": "Manage user access and details.",
+    "saved_desc": "The user has been saved.",
+    "deactivate": "Deactivate User",
+    "deactivate_confirm_title": "Deactivate User",
+    "deactivate_confirm_desc": "Are you sure? This user will be deactivated and will no longer be able to log in to the system.",
+    "deactivate_btn": "Yes, Deactivate",
+    "deactivated": "User deactivated",
+    "deactivated_desc": "The user account has been successfully deactivated.",
+    "no_users": "No users found."
+  },
+  "roles": {
+    "super_admin": {
+      "title": "Super Admin",
+      "desc": "Full access to all modules and settings"
+    },
+    "commerce_manager": {
+      "title": "Commerce Manager",
+      "desc": "Manages sales, customers, and pricing"
+    },
+    "production_manager": {
+      "title": "Production Manager",
+      "desc": "Manages recipes, manufacturing, and raw materials"
+    },
+    "cashier": {
+      "title": "Cashier",
+      "desc": "Handles POS and daily sales"
+    },
+    "warehouse_agent": {
+      "title": "Warehouse Agent",
+      "desc": "Manages stock movements and inventory counts"
+    },
+    "viewer": {
+      "title": "Viewer",
+      "desc": "Read-only access to dashboards and reports"
+    }
+  }
+}

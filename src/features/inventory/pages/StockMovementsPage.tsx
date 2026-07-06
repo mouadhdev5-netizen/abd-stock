@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -17,11 +16,12 @@ import {
 } from '@/components/ui/table'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export'
+import { format } from 'date-fns'
 
 export default function StockMovementsPage() {
-  const { t } = useTranslation(['common'])
+  const { t } = useTranslation(['common', 'commerce'])
   const { company } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({})
@@ -38,10 +38,11 @@ export default function StockMovementsPage() {
         .from('stock_movements')
         .select(`
           *,
-          products(name, sku)
+          products(name, sku),
+          profiles:created_by(full_name)
         `)
         .eq('company_id', company.id)
-        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return data
@@ -51,14 +52,14 @@ export default function StockMovementsPage() {
 
   const filters: FilterConfig[] = [
     {
-      key: 'transaction_type',
+      key: 'movement_type',
       title: 'Type',
       options: [
         { label: 'Purchase (IN)', value: 'purchase' },
         { label: 'Sale (OUT)', value: 'sale' },
         { label: 'Adjustment (+/-)', value: 'adjustment' },
-        { label: 'Transfer', value: 'transfer' },
-        { label: 'Return', value: 'return' }
+        { label: 'Count Adjustment', value: 'count_adjustment' },
+        { label: 'Transfer', value: 'transfer_in' }
       ]
     },
     {
@@ -74,8 +75,8 @@ export default function StockMovementsPage() {
     const matchesSearch = prodName.includes(searchTerm.toLowerCase()) || 
                           sku.includes(searchTerm.toLowerCase())
     
-    const typeFilter = activeFilters['transaction_type']
-    const matchesType = typeFilter?.length > 0 ? typeFilter.includes(m.transaction_type) : true
+    const typeFilter = activeFilters['movement_type']
+    const matchesType = typeFilter?.length > 0 ? typeFilter.includes(m.movement_type) : true
 
     let matchesQuantity = true
     if (activeFilters['quantity']) {
@@ -100,17 +101,46 @@ export default function StockMovementsPage() {
     setPageIndex(0)
   }, [searchTerm, activeFilters])
 
+  const generateHumanReadableLog = (m: any) => {
+    const user = (m.profiles as any)?.full_name || 'System'
+    const qty = Math.abs(m.quantity)
+    const product = (m.products as any)?.name || 'Unknown Product'
+    const ref = m.ref_id || m.notes || '-'
+    const isPositive = m.quantity > 0
+
+    if (m.movement_type === 'purchase') {
+      return t('commerce:inventory.log_purchase', { defaultValue: `[{{user}}] purchased +{{qty}} of [{{product}}] via {{ref}}`, user, qty, product, ref })
+    }
+    if (m.movement_type === 'sale') {
+      return t('commerce:inventory.log_sale', { defaultValue: `Sale removed -{{qty}} of [{{product}}] via {{ref}}`, user: 'Sale', qty, product, ref })
+    }
+    if (m.movement_type === 'adjustment' || m.movement_type === 'count_adjustment') {
+      const sign = isPositive ? '+' : '-'
+      return t('commerce:inventory.log_adjust', { defaultValue: `[{{user}}] adjusted {{sign}}{{qty}} of [{{product}}] (Reason: {{ref}})`, user, sign, qty, product, ref })
+    }
+    if (m.movement_type === 'transfer_in' || m.movement_type === 'transfer_out') {
+      const sign = isPositive ? '+' : '-'
+      return t('commerce:inventory.log_transfer', { defaultValue: `[{{user}}] transferred {{sign}}{{qty}} of [{{product}}]`, user, sign, qty, product })
+    }
+    if (m.movement_type === 'initial') {
+      return t('commerce:inventory.log_initial', { defaultValue: `[{{user}}] set initial stock of {{qty}} for [{{product}}]`, user, qty, product })
+    }
+    
+    // Default fallback
+    return `${user} did ${m.movement_type} of ${isPositive ? '+' : '-'}${qty} for ${product}`
+  }
+
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)]">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Stock Movements</h1>
-          <p className="text-muted-foreground mt-1">Detailed ledger of all inventory IN/OUT operations.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('commerce:inventory.logs_title', { defaultValue: 'Stock Logs' })}</h1>
+          <p className="text-muted-foreground mt-1">{t('commerce:inventory.logs_subtitle', { defaultValue: 'Detailed ledger of all inventory IN/OUT operations.' })}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportToExcel(filteredMovements || [], 'StockLedger')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Ledger
+            <Download className="me-2 h-4 w-4" />
+            {t('commerce:inventory.export_ledger', { defaultValue: 'Export Ledger' })}
           </Button>
         </div>
       </div>
@@ -120,8 +150,8 @@ export default function StockMovementsPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search product or SKU..."
-            className="pl-8 w-full"
+            placeholder={t('commerce:inventory.search_logs', { defaultValue: 'Search product or SKU...' })}
+            className="ps-8 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -140,50 +170,57 @@ export default function StockMovementsPage() {
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Cost</TableHead>
-                <TableHead className="text-right">Total Value</TableHead>
-                <TableHead>Reference</TableHead>
+                <TableHead>{t('commerce:inventory.date_time', { defaultValue: 'Date & Time' })}</TableHead>
+                <TableHead>{t('commerce:inventory.product', { defaultValue: 'Product' })}</TableHead>
+                <TableHead>{t('commerce:inventory.description', { defaultValue: 'Movement Description' })}</TableHead>
+                <TableHead className="text-end">{t('commerce:inventory.qty', { defaultValue: 'Qty' })}</TableHead>
+                <TableHead className="text-end">{t('commerce:inventory.unit_cost', { defaultValue: 'Unit Cost' })}</TableHead>
+                <TableHead className="text-end">{t('commerce:inventory.total_value', { defaultValue: 'Total Value' })}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">Loading ledger...</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10">Loading ledger...</TableCell>
                 </TableRow>
               ) : filteredMovements?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">No movements found.</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10">No movements found.</TableCell>
                 </TableRow>
               ) : (
                 paginatedMovements?.map((m) => {
                   const isPositive = m.quantity > 0
                   return (
                     <TableRow key={m.id}>
-                      <TableCell>{formatDate(m.transaction_date)}</TableCell>
+                      <TableCell>
+                        <div className="font-medium whitespace-nowrap">
+                          {format(new Date(m.created_at), 'dd/MM/yyyy')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(m.created_at), 'HH:mm')}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">{(m.products as any)?.name}</div>
                         <div className="text-xs text-muted-foreground">{(m.products as any)?.sku}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="uppercase text-xs">{m.transaction_type}</Badge>
+                        <div className="text-sm">
+                          {generateHumanReadableLog(m)}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-end">
                         <span className={`flex items-center justify-end gap-1 font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
                           {isPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                           {Math.abs(m.quantity)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-end">
                         {formatCurrency(m.unit_cost, company?.currency || 'DZD')}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-end font-medium">
                         {formatCurrency(Math.abs(m.quantity) * m.unit_cost, company?.currency || 'DZD')}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{m.reference_id || '-'}</TableCell>
                     </TableRow>
                   )
                 })

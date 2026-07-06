@@ -142,7 +142,18 @@
     "due": "Dû",
     "administration": "Administration",
     "business": "Entreprise",
-    "purchases_subtitle": "Gérer les commandes fournisseurs et les réceptions de stock"
+    "purchases_subtitle": "Gérer les commandes fournisseurs et les réceptions de stock",
+    "discontinued": "Interrompu",
+    "search_branches": "Rechercher des succursales...",
+    "search_audit": "Rechercher par entité ou utilisateur...",
+    "search_customers": "Rechercher des clients...",
+    "search_warehouses": "Rechercher des entrepôts...",
+    "search_orders": "Rechercher Commande # ou Client...",
+    "select_branch": "Sélectionner une succursale",
+    "all_branches": "Toutes les succursales",
+    "date_range": "Plage de dates",
+    "select_supplier": "Sélectionner le fournisseur",
+    "select_status": "Sélectionner le statut"
   },
   "errors": {
     "required": "Ce champ est obligatoire",
@@ -169,5 +180,9 @@
     "dark": "Sombre",
     "light": "Clair",
     "system": "Système"
+  },
+  "messages": {
+    "loading": "Chargement...",
+    "no_data_available": "Aucune donnée disponible"
   }
 }

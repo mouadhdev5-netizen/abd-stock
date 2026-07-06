@@ -62,14 +62,9 @@ export const useAuthStore = create<AuthState>()(
       hasRole: (role: UserRole) => {
         const { profile } = get()
         if (!profile) return false
-
-        const roleHierarchy: Record<UserRole, number> = {
-          super_admin: 3,
-          moderator: 2,
-          employee: 1,
-        }
-
-        return roleHierarchy[profile.role] >= roleHierarchy[role]
+        // super_admin has all roles
+        if (profile.role === 'super_admin') return true
+        return profile.role === role
       },
 
       hasPermission: (_permission: string) => {

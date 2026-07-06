@@ -142,7 +142,18 @@
     "due": "المستحق",
     "administration": "الإدارة",
     "business": "شركة",
-    "purchases_subtitle": "إدارة أوامر الموردين واستلام المخزون"
+    "purchases_subtitle": "إدارة أوامر الموردين واستلام المخزون",
+    "discontinued": "متوقف",
+    "search_branches": "البحث عن الفروع...",
+    "search_audit": "البحث حسب الكيان أو المستخدم...",
+    "search_customers": "البحث عن العملاء...",
+    "search_warehouses": "البحث عن المستودعات...",
+    "search_orders": "البحث عن طلب # أو عميل...",
+    "select_branch": "حدد فرعا",
+    "all_branches": "جميع الفروع",
+    "date_range": "نطاق التاريخ",
+    "select_supplier": "حدد المورد",
+    "select_status": "حدد الحالة"
   },
   "errors": {
     "required": "هذا الحقل مطلوب",
@@ -169,5 +180,9 @@
     "dark": "داكن",
     "light": "فاتح",
     "system": "النظام"
+  },
+  "messages": {
+    "loading": "جاري التحميل...",
+    "no_data_available": "لا توجد بيانات متاحة"
   }
 }

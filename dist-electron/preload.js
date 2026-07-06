@@ -1,28 +1,24 @@
-import { contextBridge, ipcRenderer } from "electron";
-contextBridge.exposeInMainWorld("ipcRenderer", withPrototype(ipcRenderer));
-function withPrototype(obj) {
-  const protos = Object.getPrototypeOf(obj);
-  for (const [key, value] of Object.entries(protos)) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) continue;
-    if (typeof value === "function") {
-      obj[key] = function(...args) {
-        return value.call(obj, ...args);
-      };
-    }
-  }
-  return obj;
+import { contextBridge as r, ipcRenderer as i } from "electron";
+r.exposeInMainWorld("ipcRenderer", f(i));
+function f(e) {
+  const o = Object.getPrototypeOf(e);
+  for (const [t, n] of Object.entries(o))
+    Object.prototype.hasOwnProperty.call(e, t) || typeof n == "function" && (e[t] = function(...c) {
+      return n.call(e, ...c);
+    });
+  return e;
 }
-contextBridge.exposeInMainWorld("electron", {
-  showNotification: (title, body) => ipcRenderer.invoke("show-notification", { title, body }),
-  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
-  minimize: () => ipcRenderer.invoke("minimize-window"),
-  maximize: () => ipcRenderer.invoke("maximize-window"),
-  close: () => ipcRenderer.invoke("close-window"),
-  isMaximized: () => ipcRenderer.invoke("is-maximized"),
-  on: (channel, callback) => {
-    ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+r.exposeInMainWorld("electron", {
+  showNotification: (e, o) => i.invoke("show-notification", { title: e, body: o }),
+  getAppVersion: () => i.invoke("get-app-version"),
+  minimize: () => i.invoke("minimize-window"),
+  maximize: () => i.invoke("maximize-window"),
+  close: () => i.invoke("close-window"),
+  isMaximized: () => i.invoke("is-maximized"),
+  on: (e, o) => {
+    i.on(e, (t, ...n) => o(...n));
   },
-  off: (channel, callback) => {
-    ipcRenderer.off(channel, callback);
+  off: (e, o) => {
+    i.off(e, o);
   }
 });

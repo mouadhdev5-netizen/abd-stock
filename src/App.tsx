@@ -1,5 +1,5 @@
 import { useEffect, Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -168,7 +168,7 @@ export default function App() {
   }, [setUser, setLoading])
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public */}
@@ -230,6 +230,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/commerce/dashboard" replace />} />
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

@@ -33,10 +33,14 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 
+import { useQuery } from '@tanstack/react-query'
+import { Product } from '@/types/database.types'
+
 const adjustSchema = z.object({
   type: z.enum(['add', 'remove']),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
   reason: z.string().min(1, 'Please select a reason'),
+  variant_id: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -54,18 +58,38 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
   const { t } = useTranslation(['commerce', 'common'])
   const { company } = useAuthStore()
 
+  const { data: variants, isLoading: loadingVariants } = useQuery({
+    queryKey: ['product_variants', product?.product_id],
+    queryFn: async () => {
+      if (!product?.has_variants) return []
+      const { data, error } = await supabase
+        .from('product_variants')
+        .select('id, name, sku, cost_price')
+        .eq('product_id', product.product_id)
+      if (error) throw error
+      return data
+    },
+    enabled: !!product?.product_id && product?.has_variants && !variant && isOpen
+  })
+
   const form = useForm<AdjustFormValues>({
     resolver: zodResolver(adjustSchema),
     defaultValues: {
       type: 'add',
       quantity: 1,
       reason: 'Inventory Count',
+      variant_id: variant?.id || '',
       notes: '',
     },
   })
 
   async function onSubmit(data: AdjustFormValues) {
     if (!company?.id || !product?.product_id) return
+
+    if (product.has_variants && !variant && !data.variant_id) {
+      alert("Please select a variant to adjust")
+      return
+    }
 
     try {
       const isAdd = data.type === 'add'
@@ -77,13 +101,18 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
 
       const user = useAuthStore.getState().user
 
+      let targetVariant = variant;
+      if (!targetVariant && data.variant_id && variants) {
+        targetVariant = variants.find((v: Product) => v.id === data.variant_id);
+      }
+
       const { error } = await supabase.rpc('fn_update_stock_level', {
         p_company_id: company.id,
         p_product_id: product.product_id,
-        p_variant_id: variant ? (variant.variant_id || variant.id) : null,
+        p_variant_id: targetVariant ? (targetVariant.variant_id || targetVariant.id) : null,
         p_warehouse_id: (wh as any).id,
         p_quantity: qty,
-        p_unit_cost: variant ? (variant.cost_price || 0) : (product.cost_price || product.avg_cost || 0),
+        p_unit_cost: targetVariant ? (targetVariant.cost_price || 0) : (product.cost_price || product.avg_cost || 0),
         p_movement_type: data.reason === 'Inventory Count' ? 'count_adjustment' : 'adjustment',
         p_notes: data.notes ? `${data.reason}: ${data.notes} (${refId})` : `${data.reason} (${refId})`,
         p_created_by: user?.id,
@@ -100,7 +129,7 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
     }
   }
 
-  const title = product?.full_name || product?.name
+  const title = variant ? `${product?.name} - ${variant?.name}` : product?.name
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -114,6 +143,33 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {!variant && product?.has_variants && (
+              <FormField
+                control={form.control}
+                name="variant_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('labels.variant', { ns: 'common', defaultValue: 'Variant' })} *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger disabled={loadingVariants}>
+                          <SelectValue placeholder="Select a variant" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {variants?.map((v: any) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name} {v.sku ? `(${v.sku})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <FormField
               control={form.control}
               name="type"

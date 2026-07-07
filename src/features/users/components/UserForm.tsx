@@ -160,10 +160,11 @@ export function UserForm({ initialData, isOpen, onClose }: UserFormProps) {
       })
     },
     onError: (err: any) => {
+      console.error('User save error:', err)
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: err.message,
+        title: 'Error saving user',
+        description: err?.message || 'An unexpected error occurred. If this is a 409 conflict, the user email might already be registered.',
       })
     }
   })

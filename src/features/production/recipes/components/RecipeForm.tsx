@@ -117,13 +117,13 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
         notes: initialData.notes || '',
         items: initialData.recipe_items?.map((i: any) => ({
           id: i.id,
-          component_id: i.component_id || '',
+          component_id: i.component?.id || i.component_id || '',
           quantity_used: i.quantity_used
         })) || [],
         outputs: initialData.recipe_outputs?.map((o: any) => ({
           id: o.id,
-          product_id: o.product_id || '',
-          variant_id: o.variant_id || '',
+          product_id: o.product?.id || o.product_id || '',
+          variant_id: o.variant?.id || o.variant_id || '',
           quantity_produced: o.quantity_produced
         })) || [],
         charges: initialData.recipe_charges?.map((c: any) => ({

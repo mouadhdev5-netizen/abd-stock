@@ -30,6 +30,7 @@ import { formatCurrency } from '@/lib/utils'
 
 const purchaseItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
+  variant_id: z.string().nullable().optional(),
   product_name: z.string(),
   quantity: z.coerce.number().min(1),
   unit_cost: z.coerce.number().min(0),
@@ -51,12 +52,12 @@ const purchaseOrderSchema = z.object({
 type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>
 
 interface PurchaseFormProps {
-  onSuccess?: () => void
-  onCancel?: () => void
+  onSuccess: () => void
+  onCancel: () => void
 }
 
 export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
-  const { t } = useTranslation(['common'])
+  const { t } = useTranslation(['commerce', 'common'])
   const { company } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
 
@@ -76,9 +77,9 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
     queryKey: ['products_search', company?.id, productSearch],
     queryFn: async () => {
       if (!company?.id) return []
-      const query = supabase.from('v_product_stock').select('*').eq('company_id', company.id).eq('status', 'active')
+      const query = supabase.from('v_product_variants_stock').select('*').eq('company_id', company.id).eq('status', 'active')
       if (productSearch) {
-        query.ilike('name', `%${productSearch}%`)
+        query.ilike('full_name', `%${productSearch}%`)
       }
       const { data } = await query.limit(10)
       return data || []
@@ -100,12 +101,11 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
     },
   })
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: formItems, append, remove } = useFieldArray({
     name: 'items',
     control: form.control,
   })
 
-  const formItems = form.watch('items')
   const discountTotal = form.watch('discount_total')
   const amountPaid = form.watch('amount_paid')
 
@@ -117,7 +117,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
       const lineDiscount = item.discount
       const taxableAmount = lineTotal - lineDiscount
       const lineTax = taxableAmount * (item.tax_rate / 100)
-      
+
       sub += taxableAmount
       tax += lineTax
     })
@@ -134,14 +134,15 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
   }, [formItems, discountTotal, amountPaid])
 
   const addProductToCart = (product: any) => {
-    const existingIndex = formItems.findIndex(item => item.product_id === product.product_id)
+    const existingIndex = formItems.findIndex(item => item.product_id === product.product_id && item.variant_id === product.variant_id)
     if (existingIndex >= 0) {
       const currentQty = form.getValues(`items.${existingIndex}.quantity`)
       form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
     } else {
       append({
         product_id: product.product_id,
-        product_name: product.name,
+        variant_id: product.variant_id,
+        product_name: product.full_name || product.name,
         quantity: 1,
         unit_cost: product.cost_price, // Use cost_price for purchases
         discount: 0,
@@ -156,7 +157,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
 
     try {
       // 1. Generate PO Number
-      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '')
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const randomStr = Math.floor(1000 + Math.random() * 9000)
       const poNumber = `PO-${dateStr}-${randomStr}`
 
@@ -184,6 +185,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
       const orderItems = data.items.map(item => ({
         po_id: (order as any).id,
         product_id: item.product_id,
+        variant_id: item.variant_id || null,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
         discount_amount: item.discount,
@@ -197,7 +199,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
         .insert(orderItems as any)
 
       if (itemsError) throw itemsError
-      
+
       onSuccess?.()
     } catch (error: any) {
       console.error('Error creating purchase:', error)
@@ -225,8 +227,8 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
             {productSearch && products && products.length > 0 && (
               <div className="mt-2 border rounded-md bg-background shadow-md max-h-48 overflow-auto">
                 {products.map(p => (
-                  <div 
-                    key={p.product_id} 
+                  <div
+                    key={p.product_id}
                     className="p-2 hover:bg-muted cursor-pointer flex justify-between items-center"
                     onClick={() => addProductToCart(p)}
                   >
@@ -244,20 +246,20 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
           <div className="border rounded-md">
             <div className="bg-muted px-4 py-2 font-semibold border-b flex justify-between">
               <span>Purchase Items</span>
-              <Badge variant="secondary">{fields.length} Items</Badge>
+              <Badge variant="secondary">{formItems.length} Items</Badge>
             </div>
             <div className="p-4 space-y-4 max-h-[40vh] overflow-auto">
-              {fields.length === 0 ? (
+              {formItems.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Purchase list is empty. Add products above.
                 </div>
               ) : (
-                fields.map((field, index) => (
+                formItems.map((field, index) => (
                   <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center border-b pb-4 last:border-0 last:pb-0">
                     <div className="flex-1">
                       <div className="font-medium">{field.product_name}</div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                       <FormField
                         control={form.control}
@@ -296,7 +298,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
         <div className="w-full md:w-[350px] space-y-4">
           <div className="border rounded-md p-4 bg-card shadow-sm space-y-4">
             <h3 className="font-semibold border-b pb-2">Order Details</h3>
-            
+
             <FormField
               control={form.control}
               name="supplier_id"
@@ -398,7 +400,7 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
                 Cancel
               </Button>
             )}
-            <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting || fields.length === 0}>
+            <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting || formItems.length === 0}>
               {form.formState.isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
               Create PO
             </Button>

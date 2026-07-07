@@ -106,3 +106,11 @@ in edit recipe it is not re selecting the old selected components and products a
 why when I hit adjust in stock section I cannot add a specific number to a product variant??? I need it to be done 
 
 why in both sales and commands I cannot select serten varaint from a product I need it to be done 
+
+-------------------------------------------------------------------------------------------
+I still cannot add an amount of stock to a certain product variant
+
+-------------------------------------------------------------------------------------------
+I need to see users in the users tab for some reasons they are not showned
+
++user roles should be studied more a viewer cannot edit in the db so do the study of each role and give it its own permissions

@@ -111,6 +111,16 @@ why in both sales and commands I cannot select serten varaint from a product I n
 I still cannot add an amount of stock to a certain product variant
 
 -------------------------------------------------------------------------------------------
+by the way in charges it should also be specified by product varaint and in the dashboard there is a filter by product but it is not by product variant 
++ when i selected a product even it has charges it did not register as costs somehow + the style of the chart should be better
+
+------------------------------------------------------------------------------------------- here
+edit variant photo
+
+when selecting items it is better to seach by name or barcode 5atach in 1000 items it is hard
+
 I need to see users in the users tab for some reasons they are not showned
 
 +user roles should be studied more a viewer cannot edit in the db so do the study of each role and give it its own permissions
+
+5awi db

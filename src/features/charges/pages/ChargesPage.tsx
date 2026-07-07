@@ -76,6 +76,7 @@ export default function ChargesPage() {
         .select(`
           *,
           products(name, sku),
+          variants:product_variants(name),
           profiles:created_by(full_name)
         `)
         .eq('company_id', company.id)
@@ -217,7 +218,10 @@ export default function ChargesPage() {
                       {format(new Date(charge.charge_date), 'dd/MM/yyyy')}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{charge.products?.name || '-'}</div>
+                      <div className="font-medium">
+                        {charge.products?.name || '-'}
+                        {charge.variants?.name ? ` - ${charge.variants.name}` : ''}
+                      </div>
                       {charge.products?.sku && (
                         <div className="text-xs text-muted-foreground font-mono">{charge.products.sku}</div>
                       )}

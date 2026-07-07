@@ -40,7 +40,7 @@ const chargeSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
   charge_date: z.string().min(1, 'Date is required'),
-  product_id: z.string().min(1, 'Product is required'),
+  product_variant_key: z.string().min(1, 'Product is required'),
   notes: z.string().optional(),
   is_recurring: z.boolean().default(false),
   recurring_interval: z.string().optional(),
@@ -63,11 +63,11 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
     queryFn: async () => {
       if (!company?.id) return []
       const { data, error } = await supabase
-        .from('products')
-        .select('id, name')
+        .from('v_product_variants_stock')
+        .select('*')
         .eq('company_id', company.id)
         .eq('status', 'active')
-        .order('name')
+        .order('full_name')
       if (error) throw error
       return data || []
     },
@@ -80,7 +80,7 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
       description: '',
       amount: 0,
       charge_date: format(new Date(), 'yyyy-MM-dd'),
-      product_id: '',
+      product_variant_key: '',
       notes: '',
       is_recurring: false,
       recurring_interval: 'monthly',
@@ -91,9 +91,14 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
     if (!company?.id) return
 
     try {
+      const isVariant = data.product_variant_key.includes('|')
+      const productId = isVariant ? data.product_variant_key.split('|')[0] : data.product_variant_key
+      const variantId = isVariant ? data.product_variant_key.split('|')[1] : null
+
       const { error } = await supabase.from('product_charges').insert({
         company_id: company.id,
-        product_id: data.product_id,
+        product_id: productId,
+        variant_id: variantId,
         description: data.description,
         amount: data.amount,
         charge_date: data.charge_date,
@@ -111,7 +116,7 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
         description: '',
         amount: 0,
         charge_date: format(new Date(), 'yyyy-MM-dd'),
-        product_id: '',
+        product_variant_key: '',
         notes: '',
         is_recurring: false,
         recurring_interval: 'monthly',
@@ -180,10 +185,10 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
 
             <FormField
               control={form.control}
-              name="product_id"
+              name="product_variant_key"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('commerce:charges.product', { defaultValue: 'Product' })} *</FormLabel>
+                  <FormLabel>{t('commerce:charges.product', { defaultValue: 'Product / Variant' })} *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -192,7 +197,9 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
                     </FormControl>
                     <SelectContent>
                       {(products as any[])?.map((p: any) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        <SelectItem key={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id} value={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id}>
+                          {p.full_name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

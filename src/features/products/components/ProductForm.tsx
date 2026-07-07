@@ -120,15 +120,21 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         productId = (newProduct as any).id
       }
 
-      // Handle Variants
+      // Handle Variants - map 'status' field to 'is_active' boolean (DB column)
       if (data.has_variants && variants && variants.length > 0) {
         const variantsToUpsert = variants.map(v => ({
-          ...v,
           product_id: productId,
+          id: v.id || undefined,
+          name: v.name,
+          sku: v.sku || null,
+          barcode: v.barcode || null,
+          cost_price: v.cost_price,
+          sell_price: v.sell_price,
+          is_active: v.status !== 'inactive', // map status → is_active
         }))
         const { error: variantError } = await supabase
           .from('product_variants')
-          .upsert(variantsToUpsert as never)
+          .upsert(variantsToUpsert as never, { onConflict: 'id' })
         
         if (variantError) throw variantError
       }

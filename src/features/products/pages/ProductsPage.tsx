@@ -178,32 +178,31 @@ export default function ProductsPage() {
   }
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm(t('products.delete_confirm', { defaultValue: 'Are you sure you want to delete this product?' }))) return
+    if (!window.confirm(t('products.delete_confirm', { defaultValue: 'Are you sure you want to delete this product? It will be hidden from all views.' }))) return
     try {
       const { error } = await supabase
         .from('products')
-        .update({ status: 'deleted' } as never)
+        .update({ status: 'inactive' } as never)
         .eq('id', productId)
       if (error) throw error
-      
-      alert(t('products.deleted', { defaultValue: 'Product deleted' }))
       refetch()
-    } catch (err) {
-      alert(t('common.error', { defaultValue: 'An error occurred' }))
+    } catch (err: any) {
+      alert(`Failed to delete product: ${err.message}`)
     }
   }
   
   const handleVariantStatusToggle = async (variantId: string, newStatus: string) => {
     try {
+      const newIsActive = newStatus === 'active'
       const { error } = await supabase
         .from('product_variants')
-        .update({ status: newStatus } as never)
+        .update({ is_active: newIsActive } as never)
         .eq('id', variantId)
       if (error) throw error
       
-      setExpandedVariants(prev => prev.map(v => v.id === variantId ? { ...v, status: newStatus } : v))
-    } catch (err) {
-      alert(t('common.error', { defaultValue: 'An error occurred' }))
+      setExpandedVariants(prev => prev.map(v => v.id === variantId ? { ...v, is_active: newIsActive } : v))
+    } catch (err: any) {
+      alert(err.message || 'An error occurred')
     }
   }
 

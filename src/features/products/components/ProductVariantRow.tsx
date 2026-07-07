@@ -140,8 +140,8 @@ export function ProductVariantRow({ variant, onStatusToggle, onUpdate }: Product
       
       <div className="flex items-center gap-4 min-w-[150px] justify-end">
         <StatusToggle 
-          checked={variant.status === 'active'} 
-          onToggle={() => onStatusToggle(variant.id, variant.status === 'active' ? 'inactive' : 'active')} 
+          checked={variant.is_active !== false} 
+          onToggle={() => onStatusToggle(variant.id, variant.is_active !== false ? 'inactive' : 'active')} 
         />
         <Button 
           variant="ghost" 

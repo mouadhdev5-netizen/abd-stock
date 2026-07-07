@@ -33,10 +33,13 @@ import { QuickAddCustomerForm } from '@/features/sales/components/QuickAddCustom
 import { createShipment, YalidinShipmentInput } from '@/lib/yalidin'
 
 const commandItemSchema = z.object({
-  product_id: z.string().min(1, 'Product is required'),
+  product_id: z.string().min(1),
+  variant_id: z.string().nullable().optional(),
   product_name: z.string(),
   quantity: z.coerce.number().min(1),
   unit_price: z.coerce.number().min(0),
+  discount: z.coerce.number().min(0).default(0),
+  max_stock: z.number().optional()
 })
 
 const commandOrderSchema = z.object({
@@ -77,9 +80,9 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
     queryKey: ['products_search', company?.id, productSearch],
     queryFn: async () => {
       if (!company?.id) return []
-      const query = supabase.from('v_product_stock').select('*').eq('company_id', company.id).eq('status', 'active')
+      const query = supabase.from('v_product_variants_stock').select('*').eq('company_id', company.id).eq('status', 'active')
       if (productSearch) {
-        query.ilike('name', `%${productSearch}%`)
+        query.ilike('full_name', `%${productSearch}%`)
       }
       const { data } = await query.limit(10)
       return data || []
@@ -118,16 +121,29 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
   }, [formItems])
 
   const addProductToCart = (product: any) => {
-    const existingIndex = formItems.findIndex(item => item.product_id === product.product_id)
+    const existingIndex = formItems.findIndex(item => 
+      item.product_id === product.product_id && item.variant_id === product.variant_id
+    )
     if (existingIndex >= 0) {
       const currentQty = form.getValues(`items.${existingIndex}.quantity`)
-      form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
+      if (currentQty < product.total_qty_available) {
+        form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
+      } else {
+        alert(t('commerce:sales.stock_limit_reached', { defaultValue: 'Not enough stock available.' }))
+      }
     } else {
+      if (product.total_qty_available <= 0) {
+        alert(t('commerce:sales.out_of_stock', { defaultValue: 'This item is out of stock.' }))
+        return
+      }
       append({
         product_id: product.product_id,
-        product_name: product.name,
+        variant_id: product.variant_id,
+        product_name: product.full_name,
         quantity: 1,
         unit_price: product.sell_price,
+        discount: 0,
+        max_stock: product.total_qty_available
       })
     }
     setProductSearch('')
@@ -135,7 +151,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
 
   const handleBarcodeScan = async (barcode: string) => {
     if (!company?.id || !barcode) return
-    const { data } = await supabase.from('v_product_stock').select('*').eq('company_id', company.id).eq('barcode', barcode).single()
+    const { data } = await supabase.from('v_product_variants_stock').select('*').eq('company_id', company.id).eq('barcode', barcode).single()
     if (data) addProductToCart(data)
     else {
       alert(t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }))
@@ -145,14 +161,21 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
 
   const handleProductSearchSelect = async (query: string) => {
     if (!company?.id || !query) return
-    const { data } = await supabase.from('v_product_stock').select('*').eq('company_id', company.id).ilike('name', `%${query}%`).limit(1).single()
+    const { data } = await supabase.from('v_product_variants_stock').select('*').eq('company_id', company.id).ilike('full_name', `%${query}%`).limit(1).single()
     if (data) addProductToCart(data)
   }
 
   async function onSubmit(data: CommandFormValues) {
     if (!company?.id) return
+
     if (data.items.length === 0) {
-      alert('Cart is empty.')
+      alert(t('commerce:sales.empty_cart', { defaultValue: 'Cannot create an order with an empty cart.' }))
+      return
+    }
+
+    const overstockItem = data.items.find(item => item.max_stock !== undefined && item.quantity > item.max_stock)
+    if (overstockItem) {
+      alert(`Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`)
       return
     }
 
@@ -177,6 +200,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
       const commandItems = data.items.map(item => ({
         command_id: (command as any).id,
         product_id: item.product_id,
+        variant_id: item.variant_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
         product_name: item.product_name,

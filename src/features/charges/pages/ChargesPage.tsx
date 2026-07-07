@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Download } from 'lucide-react'
 import { format, subDays, startOfDay } from 'date-fns'
 
@@ -34,6 +34,7 @@ type DateRange = '7' | '30' | '90' | 'all'
 export default function ChargesPage() {
   const { t } = useTranslation(['commerce', 'common'])
   const { company } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<string>('all')
@@ -262,7 +263,7 @@ export default function ChargesPage() {
         onClose={() => setIsFormOpen(false)}
         onSuccess={() => {
           setIsFormOpen(false)
-          refetch()
+          queryClient.invalidateQueries({ queryKey: ['product_charges'] })
         }}
       />
     </div>

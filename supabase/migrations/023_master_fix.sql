@@ -244,10 +244,10 @@ SELECT
   p.status,
   p.has_variants,
   p.thumbnail_url,
-  COALESCE(SUM(inv.quantity_on_hand), 0) AS total_qty_on_hand,
-  COALESCE(SUM(inv.quantity_on_hand), 0) AS total_qty_available
+  COALESCE(SUM(inv.qty_on_hand), 0) AS total_qty_on_hand,
+  COALESCE(SUM(inv.qty_available), 0) AS total_qty_available
 FROM products p
-LEFT JOIN inventory inv ON inv.product_id = p.id
+LEFT JOIN stock_levels inv ON inv.product_id = p.id
 WHERE p.status != 'discontinued'
 GROUP BY p.id;
 

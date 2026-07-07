@@ -75,16 +75,19 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
       const { data: wh } = await supabase.from('warehouses').select('id').eq('company_id', company.id).limit(1).single()
       if (!wh) throw new Error("No warehouse found for adjustment")
 
-      const { error } = await supabase.from('stock_movements').insert({
-        company_id: company.id,
-        warehouse_id: (wh as any).id,
-        product_id: product.product_id,
-        variant_id: variant ? variant.id : null,
-        movement_type: data.reason === 'Inventory Count' ? 'count_adjustment' : 'adjustment',
-        quantity: qty,
-        unit_cost: variant ? variant.cost_price : product.avg_cost,
-        notes: data.notes ? `${data.reason}: ${data.notes} (${refId})` : `${data.reason} (${refId})`,
-      } as never)
+      const user = useAuthStore.getState().user
+
+      const { error } = await supabase.rpc('fn_update_stock_level', {
+        p_company_id: company.id,
+        p_product_id: product.product_id,
+        p_variant_id: variant ? (variant.variant_id || variant.id) : null,
+        p_warehouse_id: (wh as any).id,
+        p_quantity: qty,
+        p_unit_cost: variant ? (variant.cost_price || 0) : (product.cost_price || product.avg_cost || 0),
+        p_movement_type: data.reason === 'Inventory Count' ? 'count_adjustment' : 'adjustment',
+        p_notes: data.notes ? `${data.reason}: ${data.notes} (${refId})` : `${data.reason} (${refId})`,
+        p_created_by: user?.id,
+      } as any)
 
       if (error) throw error
 
@@ -97,9 +100,7 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
     }
   }
 
-  const title = variant 
-    ? `${product.name} - ${variant.name}`
-    : product?.name
+  const title = product?.full_name || product?.name
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

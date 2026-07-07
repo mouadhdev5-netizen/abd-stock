@@ -120,9 +120,9 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         productId = (newProduct as any).id
       }
 
-      // Handle Variants - map 'status' field to 'is_active' boolean (DB column)
+      // Handle Variants
       if (data.has_variants && variants && variants.length > 0) {
-        const variantsToUpsert = variants.map(v => ({
+        const mappedVariants = variants.map(v => ({
           product_id: productId,
           id: v.id || undefined,
           name: v.name,
@@ -130,13 +130,26 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
           barcode: v.barcode || null,
           cost_price: v.cost_price,
           sell_price: v.sell_price,
-          is_active: v.status !== 'inactive', // map status → is_active
+          is_active: v.status !== 'inactive',
         }))
-        const { error: variantError } = await supabase
-          .from('product_variants')
-          .upsert(variantsToUpsert as never, { onConflict: 'id' })
-        
-        if (variantError) throw variantError
+
+        const newVariants = mappedVariants.filter(v => !v.id)
+        const existingVariants = mappedVariants.filter(v => v.id)
+
+        if (newVariants.length > 0) {
+          const variantsToInsert = newVariants.map(({ id, ...rest }) => rest)
+          const { error: insertError } = await supabase
+            .from('product_variants')
+            .insert(variantsToInsert as never)
+          if (insertError) throw insertError
+        }
+
+        if (existingVariants.length > 0) {
+          const { error: updateError } = await supabase
+            .from('product_variants')
+            .upsert(existingVariants as never, { onConflict: 'id' })
+          if (updateError) throw updateError
+        }
       }
 
       alert(t('products.product_saved', { defaultValue: 'Product saved successfully' }))

@@ -138,20 +138,15 @@ export function UserForm({ initialData, isOpen, onClose }: UserFormProps) {
         // Create mode
         if (!data.password) throw new Error('Password is required for new users')
 
-        // NOTE: We cannot create a real auth user from the client safely without them being logged in, 
-        // unless we use an Edge Function. For demo purposes, we just insert into profiles with a fake UUID.
-        const fakeId = crypto.randomUUID()
-        const { error } = await supabase
-          .from('profiles')
-          .insert({
-            id: fakeId,
-            company_id: company.id,
-            email: data.email,
-            full_name: data.full_name,
-            role: data.role,
-            branch_id: data.branch_id,
-            is_active: true,
-          })
+        // Call the RPC to create the auth user and profile together
+        const { error } = await supabase.rpc('create_company_user', {
+          p_email: data.email,
+          p_password: data.password,
+          p_full_name: data.full_name,
+          p_role: data.role,
+          p_company_id: company.id,
+          p_branch_id: data.branch_id || null
+        })
 
         if (error) throw error
       }

@@ -33,12 +33,14 @@ import { generateInvoicePDF } from '@/lib/export'
 
 const salesItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
+  variant_id: z.string().nullable().optional(),
   product_name: z.string(),
   quantity: z.coerce.number().min(1),
   unit_price: z.coerce.number().min(0),
   catalog_price: z.coerce.number().min(0),
   discount: z.coerce.number().min(0).default(0),
   tax_rate: z.coerce.number().min(0).default(19),
+  max_stock: z.number().optional(),
 })
 
 const salesOrderSchema = z.object({
@@ -81,9 +83,9 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     queryKey: ['products_search', company?.id, productSearch],
     queryFn: async () => {
       if (!company?.id) return []
-      const query = supabase.from('v_product_stock').select('*').eq('company_id', company.id).eq('status', 'active')
+      const query = supabase.from('v_product_variants_stock').select('*').eq('company_id', company.id).eq('status', 'active')
       if (productSearch) {
-        query.ilike('name', `%${productSearch}%`)
+        query.ilike('full_name', `%${productSearch}%`)
       }
       const { data } = await query.limit(10)
       return data || []
@@ -152,21 +154,33 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   }, [paymentStatus, grandTotal, form])
 
   const addProductToCart = (product: any) => {
-    const existingIndex = formItems.findIndex(item => item.product_id === product.product_id)
+    const existingIndex = formItems.findIndex(item => 
+      item.product_id === product.product_id && item.variant_id === product.variant_id
+    )
     if (existingIndex >= 0) {
       // Increment qty
       const currentQty = form.getValues(`items.${existingIndex}.quantity`)
-      form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
+      if (currentQty < product.total_qty_available) {
+        form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
+      } else {
+        alert(t('commerce:sales.stock_limit_reached', { defaultValue: 'Not enough stock available.' }))
+      }
     } else {
       // Add new
+      if (product.total_qty_available <= 0) {
+        alert(t('commerce:sales.out_of_stock', { defaultValue: 'This item is out of stock.' }))
+        return
+      }
       append({
         product_id: product.product_id,
-        product_name: product.name,
+        variant_id: product.variant_id,
+        product_name: product.full_name,
         quantity: 1,
         unit_price: product.sell_price,
         catalog_price: product.sell_price,
         discount: 0,
         tax_rate: 19, // Default VAT
+        max_stock: product.total_qty_available
       })
     }
     setProductSearch('')
@@ -175,7 +189,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   const handleBarcodeScan = async (barcode: string) => {
     if (!company?.id || !barcode) return
     const { data } = await supabase
-      .from('v_product_stock')
+      .from('v_product_variants_stock')
       .select('*')
       .eq('company_id', company.id)
       .eq('barcode', barcode)
@@ -192,10 +206,10 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   const handleProductSearchSelect = async (query: string) => {
     if (!company?.id || !query) return
     const { data } = await supabase
-      .from('v_product_stock')
+      .from('v_product_variants_stock')
       .select('*')
       .eq('company_id', company.id)
-      .ilike('name', `%${query}%`)
+      .ilike('full_name', `%${query}%`)
       .limit(1)
       .single()
       
@@ -207,9 +221,16 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   async function onSubmit(data: SalesOrderFormValues) {
     if (!company?.id) return
     
-    // Bug 3 Fix: Empty cart guard
+    // Empty cart guard
     if (data.items.length === 0) {
       alert(t('commerce:sales.empty_cart', { defaultValue: 'Cannot create a sale with an empty cart.' }))
+      return
+    }
+
+    // Stock validation guard
+    const overstockItem = data.items.find(item => item.max_stock !== undefined && item.quantity > item.max_stock)
+    if (overstockItem) {
+      alert(`Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`)
       return
     }
 
@@ -245,6 +266,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       const orderItems = data.items.map(item => ({
         sales_order_id: (order as any).id,
         product_id: item.product_id,
+        variant_id: item.variant_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount: item.discount,

@@ -39,6 +39,7 @@ export default function StockMovementsPage() {
         .select(`
           *,
           products(name, sku),
+          product_variants(name),
           profiles:created_by(full_name)
         `)
         .eq('company_id', company.id)
@@ -104,7 +105,9 @@ export default function StockMovementsPage() {
   const generateHumanReadableLog = (m: any) => {
     const user = (m.profiles as any)?.full_name || 'System'
     const qty = Math.abs(m.quantity)
-    const product = (m.products as any)?.name || 'Unknown Product'
+    const baseProduct = (m.products as any)?.name || 'Unknown Product'
+    const variantName = (m.product_variants as any)?.name
+    const product = variantName ? `${baseProduct} - ${variantName}` : baseProduct
     const ref = m.ref_id || m.notes || '-'
     const isPositive = m.quantity > 0
 

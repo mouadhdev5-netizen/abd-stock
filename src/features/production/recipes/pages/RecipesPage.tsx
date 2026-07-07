@@ -15,12 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatCurrency } from '@/lib/utils'
 import { RecipeForm } from '../components/RecipeForm'
 import { RecipeExecuteDialog } from '../components/RecipeExecuteDialog'
@@ -159,39 +154,35 @@ export default function RecipesPage() {
                       </TableCell>
                       
                       <TableCell>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="underline decoration-dotted cursor-help">
-                              {recipe.recipe_items?.length || 0} {t('production:components.title', { defaultValue: 'Components' })}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <ul className="text-xs space-y-1">
-                                {recipe.recipe_items?.map((item: any, i: number) => (
-                                  <li key={i}>{item.component?.name} ({item.quantity_used} {item.component?.unit})</li>
-                                ))}
-                                {recipe.recipe_items?.length === 0 && <li>None</li>}
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Popover>
+                          <PopoverTrigger className="underline decoration-dotted cursor-pointer text-start">
+                            {recipe.recipe_items?.length || 0} {t('production:components.title', { defaultValue: 'Components' })}
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-auto p-3">
+                            <ul className="text-sm space-y-1">
+                              {recipe.recipe_items?.map((item: any, i: number) => (
+                                <li key={i}>{item.component?.name} ({item.quantity_used} {item.component?.unit})</li>
+                              ))}
+                              {recipe.recipe_items?.length === 0 && <li className="text-muted-foreground">None</li>}
+                            </ul>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
 
                       <TableCell>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="underline decoration-dotted cursor-help">
-                              {recipe.recipe_outputs?.length || 0} {t('labels.products', { ns: 'common', defaultValue: 'Products' })}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <ul className="text-xs space-y-1">
-                                {recipe.recipe_outputs?.map((out: any, i: number) => (
-                                  <li key={i}>{out.product?.name} {out.variant?.name ? `(${out.variant.name})` : ''} (+{out.quantity_produced})</li>
-                                ))}
-                                {recipe.recipe_outputs?.length === 0 && <li>None</li>}
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Popover>
+                          <PopoverTrigger className="underline decoration-dotted cursor-pointer text-start">
+                            {recipe.recipe_outputs?.length || 0} {t('labels.products', { ns: 'common', defaultValue: 'Products' })}
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-auto p-3">
+                            <ul className="text-sm space-y-1">
+                              {recipe.recipe_outputs?.map((out: any, i: number) => (
+                                <li key={i}>{out.product?.name} {out.variant?.name ? `(${out.variant.name})` : ''} (+{out.quantity_produced})</li>
+                              ))}
+                              {recipe.recipe_outputs?.length === 0 && <li className="text-muted-foreground">None</li>}
+                            </ul>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
 
                       <TableCell className="text-end text-muted-foreground font-medium">

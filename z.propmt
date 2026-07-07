@@ -50,3 +50,59 @@ where in sales and commands it is showing that there is no products
 
 -------------------------------------------------------------------------------------------
 fixed koch ba9ilna ghil di lpart check for any bugs and fix
+
+react-dom_client.js?v=3d480b1d:20103 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+StockPage.tsx:55 Uncaught TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at StockPage.tsx:55:39
+    at Array.filter (<anonymous>)
+    at StockPage.tsx:54:22
+    at mountMemo (react-dom_client.js?v=3d480b1d:6527:25)
+    at Object.useMemo (react-dom_client.js?v=3d480b1d:18709:20)
+    at exports.useMemo (chunk-6QKALF7I.js?v=3d480b1d:947:36)
+    at StockPage (StockPage.tsx:53:28)
+    at Object.react_stack_bottom_frame (react-dom_client.js?v=3d480b1d:18509:20)
+    at renderWithHooks (react-dom_client.js?v=3d480b1d:5654:24)
+    at updateFunctionComponent (react-dom_client.js?v=3d480b1d:7475:21)
+react-dom_client.js?v=3d480b1d:6966 An error occurred in the <StockPage> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+defaultOnUncaughtError @ react-dom_client.js?v=3d480b1d:6966
+
+-------------------------------------------------------------------------------------------
+in recipes I would like if I can hold click to see witch component was used to create what product
+
+and in recipes charges I would like to enter the number manually since it is painfull to add now 
+-------------------------------------------------------------------------------------------
+in inventory in stock I can only adjust the number for a product not it variants it should give me the option to add or remove for both product and its variants
+in inventory in stock logs I should know witch user did the changes
+
+in recipes when I click edit a recipe it is not auto selecting the components/product so imagine I need to change only the charges price I need to reenter
+the components and products
+
+I tried different user and it is returning this
+react-dom_client.js?v=3d480b1d:20103 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+useRealtimeSync.ts:61 Successfully connected to Supabase Realtime
+chunk-I6N75RP2.js?v=3d480b1d:139 Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+(anonymous) @ chunk-I6N75RP2.js?v=3d480b1d:139
+chunk-I6N75RP2.js?v=3d480b1d:139 Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+(anonymous) @ chunk-I6N75RP2.js?v=3d480b1d:139
+chunk-I6N75RP2.js?v=3d480b1d:139 Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+(anonymous) @ chunk-I6N75RP2.js?v=3d480b1d:139
+chunk-I6N75RP2.js?v=3d480b1d:139 Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+(anonymous) @ chunk-I6N75RP2.js?v=3d480b1d:139
+ppkimpkwdsnoegkqzgyj.supabase.co/rest/v1/profiles:1  Failed to load resource: the server responded with a status of 409 ()
+ppkimpkwdsnoegkqzgyj.supabase.co/rest/v1/profiles:1  Failed to load resource: the server responded with a status of 409 ()
+
+-------------------------------------------------------------------------------------------
+by the way I am adding to stock and it is not updating it is staying at 0 even though it is returning adjusted with succes
+
+-------------------------------------------------------------------------------------------
+I added a user everything is normal(I can log in but I am not doing what my roles gives me like I created a viewer and he has access to administration) but it is not appearing in users table
+
+in edit recipe it is not re selecting the old selected components and products and require me to re select them in order to change even the name wtf
+
+why when I hit adjust in stock section I cannot add a specific number to a product variant??? I need it to be done 
+
+why in both sales and commands I cannot select serten varaint from a product I need it to be done 

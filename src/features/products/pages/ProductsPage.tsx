@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Download, Upload, Barcode, Edit, ChevronDown, ChevronUp, MoreHorizontal, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
@@ -41,6 +41,7 @@ export default function ProductsPage() {
   const { t } = useTranslation('commerce')
   const { company } = useAuthStore()
   const currency = company?.currency || 'DZD'
+  const queryClient = useQueryClient()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -178,14 +179,21 @@ export default function ProductsPage() {
   }
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm(t('products.delete_confirm', { defaultValue: 'Are you sure you want to delete this product? It will be hidden from all views.' }))) return
+    if (!window.confirm(t('products.delete_confirm_hard', { defaultValue: 'Are you sure you want to permanently delete this product? This action cannot be undone.' }))) return
     try {
       const { error } = await supabase
         .from('products')
-        .update({ status: 'inactive' } as never)
+        .delete()
         .eq('id', productId)
-      if (error) throw error
-      refetch()
+        
+      if (error) {
+        if (error.code === '23503') { // Foreign key violation
+          throw new Error('This product cannot be deleted because it is already used in a sales order, purchase order, or other records.')
+        }
+        throw error
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['products'] })
     } catch (err: any) {
       alert(`Failed to delete product: ${err.message}`)
     }
@@ -248,7 +256,7 @@ export default function ProductsPage() {
       fullProduct.variants = data || []
     }
     
-    setSelectedProduct({ ...fullProduct, id: product.product_id })
+    setSelectedProduct({ ...fullProduct, id: product.product_id, image_url: product.thumbnail_url })
     setIsDialogOpen(true)
   }
 
@@ -304,7 +312,7 @@ export default function ProductsPage() {
                 initialData={selectedProduct}
                 onSuccess={() => {
                   setIsDialogOpen(false)
-                  refetch()
+                  queryClient.invalidateQueries({ queryKey: ['products'] })
                   if (expandedProductId) {
                     toggleVariants(expandedProductId) // reload variants if expanded
                     toggleVariants(expandedProductId) 
@@ -377,8 +385,8 @@ export default function ProductsPage() {
                   <React.Fragment key={product.product_id}>
                     <TableRow className={expandedProductId === product.product_id ? 'bg-muted/10' : ''}>
                       <TableCell>
-                        {product.image_url ? (
-                          <img src={product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border" />
+                        {product.thumbnail_url ? (
+                          <img src={product.thumbnail_url} alt="" className="w-10 h-10 rounded-md object-cover border" />
                         ) : (
                           <div className="w-10 h-10 rounded-md border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">Img</div>
                         )}

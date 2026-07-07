@@ -22,27 +22,27 @@ import { StockAdjustDialog } from '../components/StockAdjustDialog'
 export default function StockPage() {
   const { t } = useTranslation(['commerce', 'common'])
   const { company } = useAuthStore()
-  
+
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all')
-  
+
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(20)
 
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
-  
+
   // Adjust Dialog state
-  const [adjustTarget, setAdjustTarget] = useState<{product: any, variant?: any} | null>(null)
+  const [adjustTarget, setAdjustTarget] = useState<{ product: any, variant?: any } | null>(null)
 
   const { data: products, isLoading, refetch } = useQuery({
     queryKey: ['stock_products', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
       const { data, error } = await supabase
-        .from('v_product_stock')
+        .from('v_product_variants_stock')
         .select('*')
         .eq('company_id', company.id)
-        .order('name')
+        .order('full_name')
 
       if (error) throw error
       return data || []
@@ -50,35 +50,19 @@ export default function StockPage() {
     enabled: !!company?.id,
   })
 
-  // Variants fetching logic
-  const { data: variants } = useQuery({
-    queryKey: ['stock_variants', expandedProductId],
-    queryFn: async () => {
-      if (!expandedProductId) return []
-      const { data, error } = await supabase
-        .from('product_variants')
-        .select('*')
-        .eq('product_id', expandedProductId)
-        .order('name')
-        
-      if (error) throw error
-      return data || []
-    },
-    enabled: !!expandedProductId,
-  })
-
   const filteredProducts = useMemo(() => {
     return products?.filter((p: any) => {
-      const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      const nameStr = p.full_name || p.name || ''
+      const matchSearch = nameStr.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-      
+
       let matchFilter = true
       if (filter === 'low') {
         matchFilter = p.total_qty_on_hand > 0 && p.total_qty_on_hand <= (p.reorder_level || 5)
       } else if (filter === 'out') {
         matchFilter = p.total_qty_on_hand <= 0
       }
-      
+
       return matchSearch && matchFilter
     }) || []
   }, [products, searchTerm, filter])
@@ -128,23 +112,23 @@ export default function StockPage() {
         </div>
 
         <div className="flex bg-muted/50 p-1 rounded-md border">
-          <Button 
-            variant={filter === 'all' ? 'secondary' : 'ghost'} 
-            size="sm" 
+          <Button
+            variant={filter === 'all' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('all')}
           >
             {t('commerce:inventory.all_stock', { defaultValue: 'All Stock' })}
           </Button>
-          <Button 
-            variant={filter === 'low' ? 'secondary' : 'ghost'} 
-            size="sm" 
+          <Button
+            variant={filter === 'low' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('low')}
           >
             {t('commerce:inventory.low_stock', { defaultValue: 'Low Stock' })}
           </Button>
-          <Button 
-            variant={filter === 'out' ? 'secondary' : 'ghost'} 
-            size="sm" 
+          <Button
+            variant={filter === 'out' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('out')}
           >
             {t('commerce:inventory.out_of_stock', { defaultValue: 'Out of Stock' })}
@@ -175,100 +159,41 @@ export default function StockPage() {
                 </TableRow>
               ) : (
                 paginatedProducts.map((product: any) => (
-                  <TableRow key={product.product_id} className="group">
+                  <TableRow key={product.variant_id ? `${product.product_id}-${product.variant_id}` : product.product_id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
-                      <div className="font-medium text-primary">{product.name}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                        {product.sku && <span className="font-mono">{product.sku}</span>}
-                        {product.has_variants && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                            Variants
-                          </Badge>
-                        )}
-                      </div>
+                      <div className="font-medium text-base">{product.full_name}</div>
+                      {product.sku && <div className="text-sm text-muted-foreground font-mono">{product.sku}</div>}
                     </TableCell>
-                    <TableCell className="text-end text-muted-foreground">
-                      {formatCurrency(product.avg_cost, company?.currency || 'DZD')}
+                    <TableCell className="text-end text-muted-foreground font-mono">
+                      {formatCurrency(product.cost_price, company?.currency || 'DZD')}
                     </TableCell>
-                    <TableCell className="text-end">
-                      <span className={getQtyColorClass(product.total_qty_on_hand, product.reorder_level)}>
-                        {formatNumber(product.total_qty_on_hand)}
-                      </span>
+                    <TableCell className={`text-end font-semibold text-base ${getQtyColorClass(product.total_qty_on_hand, product.reorder_level)}`}>
+                      {formatNumber(product.total_qty_on_hand)}
                     </TableCell>
                     <TableCell className="text-center">
                       {getStockBadge(product.total_qty_on_hand, product.reorder_level)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8" 
-                          onClick={() => setAdjustTarget({ product })}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setAdjustTarget({ product, variant: product.is_variant ? product : undefined })}
                         >
                           <Settings2 className="h-4 w-4 me-1" />
                           <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
                         </Button>
-                        {product.has_variants ? (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8" 
-                            onClick={() => toggleVariants(product.product_id)}
-                          >
-                            {expandedProductId === product.product_id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </Button>
-                        ) : <div className="w-8" />}
                       </div>
                     </TableCell>
                   </TableRow>
-                )).reduce((acc: any[], product: any) => {
-                  acc.push(product)
-                  if (expandedProductId === product.product_id && variants) {
-                    acc.push(
-                      <TableRow key={`variants-${product.product_id}`} className="bg-muted/10">
-                        <TableCell colSpan={5} className="p-0 border-b-0">
-                          <div className="ps-12 pe-4 py-2 border-l-2 border-l-primary ms-4 mb-2 space-y-1">
-                            {variants.map((v: any) => (
-                              <div key={v.id} className="flex items-center justify-between py-2 border-b last:border-0 hover:bg-muted/30 px-2 rounded-sm transition-colors">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium">{v.name}</div>
-                                  <div className="text-xs text-muted-foreground font-mono">{v.sku || '-'}</div>
-                                </div>
-                                <div className="w-32 text-end text-sm text-muted-foreground">
-                                  {formatCurrency(v.cost_price, company?.currency || 'DZD')}
-                                </div>
-                                <div className={`w-24 text-end text-sm ${getQtyColorClass(v.quantity_in_stock, product.reorder_level)}`}>
-                                  {formatNumber(v.quantity_in_stock)}
-                                </div>
-                                <div className="w-32 text-center">
-                                  {getStockBadge(v.quantity_in_stock, product.reorder_level)}
-                                </div>
-                                <div className="w-[120px] text-end">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 text-xs" 
-                                    onClick={() => setAdjustTarget({ product, variant: v })}
-                                  >
-                                    {t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  }
-                  return acc
-                }, [])
+                ))
               )}
             </TableBody>
           </Table>
         </div>
         <div className="p-3 border-t bg-muted/20 flex-shrink-0">
-          <DataTablePagination 
+          <DataTablePagination
             pageIndex={pageIndex}
             pageSize={pageSize}
             totalCount={totalCount}

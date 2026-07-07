@@ -117,13 +117,13 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
         notes: initialData.notes || '',
         items: initialData.recipe_items?.map((i: any) => ({
           id: i.id,
-          component_id: i.component_id,
+          component_id: i.component_id || '',
           quantity_used: i.quantity_used
         })) || [],
         outputs: initialData.recipe_outputs?.map((o: any) => ({
           id: o.id,
-          product_id: o.product_id,
-          variant_id: o.variant_id || undefined,
+          product_id: o.product_id || '',
+          variant_id: o.variant_id || '',
           quantity_produced: o.quantity_produced
         })) || [],
         charges: initialData.recipe_charges?.map((c: any) => ({
@@ -315,7 +315,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                         render={({ field: f }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Component *</FormLabel>
-                            <Select onValueChange={f.onChange} value={f.value}>
+                            <Select onValueChange={f.onChange} value={f.value || ''} defaultValue={f.value || ''}>
                               <FormControl>
                                 <SelectTrigger><SelectValue placeholder="Select component" /></SelectTrigger>
                               </FormControl>
@@ -337,7 +337,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                         render={({ field: f }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Qty ({selectedComp?.unit || '?'}) *</FormLabel>
-                            <FormControl><Input type="number" step="0.001" min="0.001" {...f} /></FormControl>
+                            <FormControl><Input type="text" inputMode="decimal" placeholder="0.000" {...f} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -355,7 +355,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b pb-2">
                 <h3 className="text-lg font-semibold">{t('production:recipes.section_outputs', { defaultValue: '3. Products (Outputs)' })}</h3>
-                <Button type="button" variant="outline" size="sm" onClick={() => appendOutput({ product_id: '', quantity_produced: 1 })}>
+                <Button type="button" variant="outline" size="sm" onClick={() => appendOutput({ product_id: '', variant_id: '', quantity_produced: 1 })}>
                   <Plus className="h-4 w-4 me-1" /> {t('production:recipes.add_output', { defaultValue: 'Add Output' })}
                 </Button>
               </div>
@@ -378,8 +378,8 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                             <FormLabel className="text-xs">Product *</FormLabel>
                             <Select onValueChange={(val) => {
                               f.onChange(val)
-                              form.setValue(`outputs.${index}.variant_id`, undefined) // reset variant
-                            }} value={f.value}>
+                              form.setValue(`outputs.${index}.variant_id`, '')
+                            }} value={f.value || ''} defaultValue={f.value || ''}>
                               <FormControl>
                                 <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
                               </FormControl>
@@ -402,7 +402,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                           render={({ field: f }) => (
                             <FormItem>
                               <FormLabel className="text-xs">Variant</FormLabel>
-                              <Select onValueChange={f.onChange} value={f.value || undefined}>
+                              <Select onValueChange={f.onChange} value={f.value || ''} defaultValue={f.value || ''}>
                                 <FormControl>
                                   <SelectTrigger><SelectValue placeholder="Select variant" /></SelectTrigger>
                                 </FormControl>
@@ -425,7 +425,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                         render={({ field: f }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Qty *</FormLabel>
-                            <FormControl><Input type="number" min="1" {...f} /></FormControl>
+                            <FormControl><Input type="text" inputMode="decimal" placeholder="1" {...f} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -468,7 +468,7 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                       name={`charges.${index}.amount`}
                       render={({ field: f }) => (
                         <FormItem>
-                          <FormControl><Input type="number" step="0.01" min="0" placeholder="Amount" {...f} /></FormControl>
+                          <FormControl><Input type="text" inputMode="decimal" placeholder="Amount" {...f} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

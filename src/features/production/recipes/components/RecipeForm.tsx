@@ -34,6 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ProductCombobox } from '@/components/ui/ProductCombobox'
+import { ComponentCombobox } from '@/components/ui/ComponentCombobox'
 import { Separator } from '@/components/ui/separator'
 
 const recipeSchema = z.object({
@@ -308,26 +310,12 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                 const selectedComp = components?.find(c => c.id === compId)
                 return (
                   <div key={field.id} className="flex items-end gap-3 bg-muted/20 p-3 rounded-md border">
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.component_id`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Component *</FormLabel>
-                            <Select onValueChange={f.onChange} value={f.value || ''} defaultValue={f.value || ''}>
-                              <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select component" /></SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {components?.map((c: any) => (
-                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                    <div className="flex-1 w-full">
+                      <FormLabel className="text-xs">Component *</FormLabel>
+                      <ComponentCombobox
+                        companyId={company?.id}
+                        value={form.watch(`items.${index}.component_id`)}
+                        onChange={(val) => form.setValue(`items.${index}.component_id`, val)}
                       />
                     </div>
                     <div className="w-32">
@@ -368,56 +356,19 @@ export function RecipeForm({ initialData, isOpen, onClose, onSuccess }: RecipeFo
                 const hasVariants = selectedProd?.has_variants
 
                 return (
-                  <div key={field.id} className="flex items-end gap-3 bg-muted/20 p-3 rounded-md border border-purple-200 dark:border-purple-900">
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`outputs.${index}.product_id`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Product *</FormLabel>
-                            <Select onValueChange={(val) => {
-                              f.onChange(val)
-                              form.setValue(`outputs.${index}.variant_id`, '')
-                            }} value={f.value || ''} defaultValue={f.value || ''}>
-                              <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {products?.map((p: any) => (
-                                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                  <div key={field.id} className="flex flex-col sm:flex-row items-end gap-3 bg-muted/20 p-3 rounded-md border border-purple-200 dark:border-purple-900">
+                    <div className="flex-1 w-full">
+                      <FormLabel className="text-xs">Product *</FormLabel>
+                      <ProductCombobox
+                        companyId={company?.id}
+                        value={`${form.watch(`outputs.${index}.product_id`)}:${form.watch(`outputs.${index}.variant_id`) || ''}`}
+                        onChange={(val, product) => {
+                          const [pId, vId] = val.split(':')
+                          form.setValue(`outputs.${index}.product_id`, pId)
+                          form.setValue(`outputs.${index}.variant_id`, vId || null)
+                        }}
                       />
                     </div>
-                    {hasVariants && (
-                      <div className="flex-1">
-                        <FormField
-                          control={form.control}
-                          name={`outputs.${index}.variant_id`}
-                          render={({ field: f }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Variant</FormLabel>
-                              <Select onValueChange={f.onChange} value={f.value || ''} defaultValue={f.value || ''}>
-                                <FormControl>
-                                  <SelectTrigger><SelectValue placeholder="Select variant" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {selectedProd?.product_variants?.map((v: any) => (
-                                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
                     <div className="w-24">
                       <FormField
                         control={form.control}

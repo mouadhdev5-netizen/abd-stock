@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -19,6 +20,8 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
+import { SupplierInvoicesTab } from '../components/SupplierInvoicesTab'
+import { DeliveriesTab } from '../components/DeliveriesTab'
 
 export default function InvoicesPage() {
   const { t } = useTranslation('common')
@@ -44,7 +47,7 @@ export default function InvoicesPage() {
           )
         `)
         .eq('company_id', company.id)
-        .order('issue_date', { ascending: false })
+        .order('issued_at', { ascending: false })
 
       if (error) throw error
       return data as any[]
@@ -140,14 +143,18 @@ export default function InvoicesPage() {
             <Download className="me-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
-            <Receipt className="me-2 h-4 w-4" />
-            Create Invoice
-          </Button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-4 flex-shrink-0">
+      <Tabs defaultValue="client" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mb-4">
+          <TabsTrigger value="client">Client Invoices</TabsTrigger>
+          <TabsTrigger value="supplier">Supplier Invoices</TabsTrigger>
+          <TabsTrigger value="delivery">Delivery Notes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="client" className="flex-1 flex flex-col min-h-0 space-y-4 m-0 data-[state=inactive]:hidden">
+          <div className="flex flex-col sm:flex-row items-center gap-4 flex-shrink-0">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -241,6 +248,16 @@ export default function InvoicesPage() {
           </span>
         </div>
       </div>
+      </TabsContent>
+
+      <TabsContent value="supplier" className="flex-1 flex flex-col min-h-0 m-0 data-[state=inactive]:hidden">
+        <SupplierInvoicesTab />
+      </TabsContent>
+
+      <TabsContent value="delivery" className="flex-1 flex flex-col min-h-0 m-0 data-[state=inactive]:hidden">
+        <DeliveriesTab />
+      </TabsContent>
+      </Tabs>
     </div>
   )
 }

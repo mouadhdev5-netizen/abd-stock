@@ -41,26 +41,31 @@ export function mapYalidinStatus(apiStatus: string): string {
   return 'confirmed'
 }
 
+// Check if running inside Electron
+const isElectron = () => typeof window !== 'undefined' && !!(window as any).electronAPI?.yalidinApi
+
+import { supabase } from './supabase'
+
+async function callYalidinApi(action: string, payload: any): Promise<any> {
+  // In Electron — use native Node.js IPC (no CORS)
+  if (isElectron()) {
+    const result = await (window as any).electronAPI.yalidinApi(action, payload)
+    if (result?.error) throw new Error(result.error)
+    return result
+  }
+
+  // In browser/web — use Supabase Edge Function proxy
+  const { data: result, error } = await supabase.functions.invoke('yalidin-proxy', {
+    body: { action, payload }
+  })
+  if (error) throw new Error(error.message || 'Error calling yalidin-proxy')
+  if (result?.error) throw new Error(result.error)
+  return result?.data ? result.data : result
+}
+
 export async function createShipment(data: YalidinShipmentInput[]): Promise<YalidinShipmentResponse[]> {
   try {
-    const response = await fetch(`${YALIDIN_BASE_URL}/parcels/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${YALIDIN_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      // Yalidin usually accepts an array of parcels
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `Yalidin API error: ${response.statusText}`)
-    }
-
-    const result = await response.json()
-    // Depending on actual response structure. Usually it's an array or has a data key.
-    return result.data ? result.data : result
+    return await callYalidinApi('createShipment', data)
   } catch (error) {
     console.error('Yalidin createShipment error:', error)
     throw error
@@ -69,22 +74,7 @@ export async function createShipment(data: YalidinShipmentInput[]): Promise<Yali
 
 export async function getShipmentStatus(trackingIds: string[]): Promise<YalidinStatusResponse[]> {
   try {
-    const trackingQuery = trackingIds.join(',')
-    const response = await fetch(`${YALIDIN_BASE_URL}/histories/?tracking=${trackingQuery}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${YALIDIN_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `Yalidin API error: ${response.statusText}`)
-    }
-
-    const result = await response.json()
-    return result.data ? result.data : result
+    return await callYalidinApi('getShipmentStatus', trackingIds)
   } catch (error) {
     console.error('Yalidin getShipmentStatus error:', error)
     throw error

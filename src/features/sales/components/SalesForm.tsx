@@ -28,6 +28,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import { InlineSearch } from '@/components/ui/InlineSearch'
+import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from './QuickAddCustomerForm'
 import { generateInvoicePDF } from '@/lib/export'
 
@@ -315,40 +316,12 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         <div className="flex-1 space-y-4">
           <div className="border rounded-md p-4 bg-muted/30">
             <h3 className="font-semibold mb-2">{t('add_products')}</h3>
-            <InlineSearch
-              value={productSearch}
-              onChange={(val) => {
-                setProductSearch(val)
-              }}
+            <ProductCombobox
+              companyId={company?.id}
+              value=""
+              onChange={(val, product) => addProductToCart(product)}
               placeholder={t('commerce:sales.search_products_barcode', { defaultValue: 'Search products or scan barcode...' })}
-              onBarcodeScan={handleBarcodeScan}
             />
-            {productSearch && products && products.length > 0 && (
-              <div className="mt-2 border rounded-md bg-background shadow-md max-h-48 overflow-auto">
-                {products.map(p => (
-                  <div 
-                    key={p.variant_id ? p.variant_id : p.product_id} 
-                    className="p-2 hover:bg-muted cursor-pointer flex justify-between items-center gap-3"
-                    onClick={() => addProductToCart(p)}
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      {p.thumbnail_url ? (
-                        <img src={p.thumbnail_url} alt={p.full_name} className="w-10 h-10 object-cover rounded bg-muted" />
-                      ) : (
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
-                          Img
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-medium text-sm">{p.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{t('common:labels.stock', { defaultValue: 'Stock' })}: {p.total_qty_available}</div>
-                      </div>
-                    </div>
-                    <div className="font-semibold">{formatCurrency(p.sell_price, company?.currency || 'DZD')}</div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="border rounded-md">
@@ -384,7 +357,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                             <FormItem className="w-20">
                               <FormLabel className="text-[10px] text-muted-foreground">{t('labels.quantity', { ns: 'common', defaultValue: 'Qty' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" min="1" className="h-8" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                                <Input type="number" min="1" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
                               </FormControl>
                             </FormItem>
                           )}
@@ -402,8 +375,8 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                                   min="0"
                                   className={`h-8 ${isPriceOverridden ? 'border-orange-400 focus-visible:ring-orange-400' : ''}`}
                                   {...field} 
-                                  value={field.value ?? ''} 
-                                  onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} 
+                                  value={field.value === undefined ? '' : field.value} 
+                                  onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} 
                                 />
                               </FormControl>
                             </FormItem>

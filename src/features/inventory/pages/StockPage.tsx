@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, SlidersHorizontal, Settings2 } from 'lucide-react'
@@ -67,11 +67,43 @@ export default function StockPage() {
     }) || []
   }, [products, searchTerm, filter])
 
-  const totalCount = filteredProducts.length
+  const groupedProducts = useMemo(() => {
+    const map = new Map<string, any>()
+    
+    filteredProducts.forEach((p: any) => {
+      if (!map.has(p.product_id)) {
+        map.set(p.product_id, {
+          product_id: p.product_id,
+          product_name: p.product_name,
+          sku: p.sku,
+          reorder_level: p.reorder_level,
+          total_qty_on_hand: 0,
+          variants: [],
+          is_only_parent: false,
+          original_product: null
+        })
+      }
+      
+      const parent = map.get(p.product_id)
+      parent.total_qty_on_hand += (p.total_qty_on_hand || 0)
+      
+      if (p.is_variant) {
+        parent.variants.push(p)
+      } else {
+        parent.is_only_parent = true
+        parent.original_product = p
+        parent.cost_price = p.cost_price
+      }
+    })
+    
+    return Array.from(map.values()).sort((a, b) => a.product_name.localeCompare(b.product_name))
+  }, [filteredProducts])
+
+  const totalCount = groupedProducts.length
   const paginatedProducts = useMemo(() => {
     const start = pageIndex * pageSize
-    return filteredProducts.slice(start, start + pageSize)
-  }, [filteredProducts, pageIndex, pageSize])
+    return groupedProducts.slice(start, start + pageSize)
+  }, [groupedProducts, pageIndex, pageSize])
 
   const toggleVariants = (id: string) => {
     if (expandedProductId === id) {
@@ -153,40 +185,102 @@ export default function StockPage() {
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-10">Loading inventory...</TableCell>
                 </TableRow>
-              ) : filteredProducts.length === 0 ? (
+              ) : groupedProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-10">No products found matching your criteria.</TableCell>
                 </TableRow>
               ) : (
-                paginatedProducts.map((product: any) => (
-                  <TableRow key={product.variant_id ? `${product.product_id}-${product.variant_id}` : product.product_id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell>
-                      <div className="font-medium text-base">{product.full_name}</div>
-                      {product.sku && <div className="text-sm text-muted-foreground font-mono">{product.sku}</div>}
-                    </TableCell>
-                    <TableCell className="text-end text-muted-foreground font-mono">
-                      {formatCurrency(product.cost_price, company?.currency || 'DZD')}
-                    </TableCell>
-                    <TableCell className={`text-end font-semibold text-base ${getQtyColorClass(product.total_qty_on_hand, product.reorder_level)}`}>
-                      {formatNumber(product.total_qty_on_hand)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getStockBadge(product.total_qty_on_hand, product.reorder_level)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => setAdjustTarget({ product, variant: product.is_variant ? product : undefined })}
-                        >
-                          <Settings2 className="h-4 w-4 me-1" />
-                          <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                paginatedProducts.map((group: any) => (
+                  <React.Fragment key={group.product_id}>
+                    {/* Parent Row */}
+                    <TableRow className="hover:bg-muted/50 transition-colors bg-muted/10">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {!group.is_only_parent && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => toggleVariants(group.product_id)}
+                            >
+                              {expandedProductId === group.product_id ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                          <div>
+                            <div className="font-medium text-base">{group.product_name}</div>
+                            {group.sku && <div className="text-sm text-muted-foreground font-mono">{group.sku}</div>}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-end text-muted-foreground font-mono">
+                        {group.is_only_parent ? formatCurrency(group.cost_price, company?.currency || 'DZD') : '-'}
+                      </TableCell>
+                      <TableCell className={`text-end font-semibold text-base ${getQtyColorClass(group.total_qty_on_hand, group.reorder_level)}`}>
+                        {formatNumber(group.total_qty_on_hand)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getStockBadge(group.total_qty_on_hand, group.reorder_level)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {group.is_only_parent && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => setAdjustTarget({ product: group.original_product })}
+                            >
+                              <Settings2 className="h-4 w-4 me-1" />
+                              <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Variant Rows */}
+                    {!group.is_only_parent && expandedProductId === group.product_id && group.variants.map((variant: any) => (
+                      <TableRow key={variant.variant_id} className="bg-muted/5 hover:bg-muted/20">
+                        <TableCell className="pl-12">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-border" />
+                            <div>
+                              <div className="text-sm font-medium text-muted-foreground">{variant.variant_name}</div>
+                              {variant.sku && variant.sku !== group.sku && (
+                                <div className="text-xs text-muted-foreground/70 font-mono">{variant.sku}</div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-end text-muted-foreground font-mono text-sm">
+                          {formatCurrency(variant.cost_price, company?.currency || 'DZD')}
+                        </TableCell>
+                        <TableCell className={`text-end font-semibold text-sm ${getQtyColorClass(variant.total_qty_on_hand, variant.reorder_level)}`}>
+                          {formatNumber(variant.total_qty_on_hand)}
+                        </TableCell>
+                        <TableCell className="text-center scale-90">
+                          {getStockBadge(variant.total_qty_on_hand, variant.reorder_level)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => setAdjustTarget({ product: variant, variant: variant })}
+                            >
+                              <Settings2 className="h-4 w-4 me-1" />
+                              <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                 ))
               )}
             </TableBody>

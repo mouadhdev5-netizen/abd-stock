@@ -6,14 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
 import { formatCurrency } from '@/lib/utils'
@@ -168,68 +161,66 @@ export default function StockMovementsPage() {
         />
       </div>
 
-      <div className="border rounded-md bg-card flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-auto flex-1">
-          <Table>
-            <TableHeader className="sticky top-0 bg-card z-10">
-              <TableRow>
-                <TableHead>{t('commerce:inventory.date_time', { defaultValue: 'Date & Time' })}</TableHead>
-                <TableHead>{t('commerce:inventory.product', { defaultValue: 'Product' })}</TableHead>
-                <TableHead>{t('commerce:inventory.description', { defaultValue: 'Movement Description' })}</TableHead>
-                <TableHead className="text-end">{t('commerce:inventory.qty', { defaultValue: 'Qty' })}</TableHead>
-                <TableHead className="text-end">{t('commerce:inventory.unit_cost', { defaultValue: 'Unit Cost' })}</TableHead>
-                <TableHead className="text-end">{t('commerce:inventory.total_value', { defaultValue: 'Total Value' })}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">Loading ledger...</TableCell>
-                </TableRow>
-              ) : filteredMovements?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">No movements found.</TableCell>
-                </TableRow>
-              ) : (
-                paginatedMovements?.map((m) => {
-                  const isPositive = m.quantity > 0
-                  return (
-                    <TableRow key={m.id}>
-                      <TableCell>
-                        <div className="font-medium whitespace-nowrap">
-                          {format(new Date(m.created_at), 'dd/MM/yyyy')}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(m.created_at), 'HH:mm')}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{(m.products as any)?.name}</div>
-                        <div className="text-xs text-muted-foreground">{(m.products as any)?.sku}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {generateHumanReadableLog(m)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <span className={`flex items-center justify-end gap-1 font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                          {isPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                          {Math.abs(m.quantity)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-end">
-                        {formatCurrency(m.unit_cost, company?.currency || 'DZD')}
-                      </TableCell>
-                      <TableCell className="text-end font-medium">
-                        {formatCurrency(Math.abs(m.quantity) * m.unit_cost, company?.currency || 'DZD')}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
+      <div className="flex-1 overflow-auto rounded-xl border bg-card/50 shadow-sm relative">
+        <div className="p-4 space-y-3">
+          {isLoading ? (
+            <div className="text-center py-10 text-muted-foreground animate-pulse">Loading ledger...</div>
+          ) : filteredMovements?.length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground bg-card rounded-lg border border-dashed">No movements found.</div>
+          ) : (
+            paginatedMovements?.map((m) => {
+              const isPositive = m.quantity > 0
+              const isSale = m.movement_type === 'sale'
+              const isPurchase = m.movement_type === 'purchase'
+              const isAdjust = m.movement_type.includes('adjust')
+              
+              let typeColor = "bg-muted text-foreground"
+              if (isSale) typeColor = "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+              if (isPurchase) typeColor = "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+              if (isAdjust) typeColor = "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+
+              return (
+                <div key={m.id} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-xl bg-card hover:border-primary/30 transition-colors group relative overflow-hidden">
+                  {/* Color Accent Bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPositive ? 'bg-success' : 'bg-destructive'} opacity-70`}></div>
+                  
+                  {/* Header / Date */}
+                  <div className="w-full sm:w-32 flex-shrink-0 flex flex-col justify-center pl-2">
+                    <span className="text-sm font-medium">{format(new Date(m.created_at), 'MMM dd, yyyy')}</span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(m.created_at), 'HH:mm')}</span>
+                  </div>
+                  
+                  {/* Main Content */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold truncate text-base">{(m.products as any)?.name}</span>
+                      {(m.products as any)?.sku && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0">{(m.products as any)?.sku}</Badge>
+                      )}
+                      <Badge className={`ml-auto sm:ml-0 text-[10px] border-0 ${typeColor} uppercase`}>
+                        {m.movement_type.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                      {generateHumanReadableLog(m)}
+                    </div>
+                  </div>
+
+                  {/* Amounts */}
+                  <div className="w-full sm:w-48 flex-shrink-0 flex sm:flex-col justify-between items-center sm:items-end sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 mt-3 sm:mt-0 border-border">
+                    <div className={`flex items-center gap-1.5 text-lg font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                      {isPositive ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
+                      <span>{Math.abs(m.quantity)}</span>
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground mt-1 text-right">
+                      <span className="opacity-70">Value: </span>
+                      <span className="text-foreground">{formatCurrency(Math.abs(m.quantity) * m.unit_cost, company?.currency || 'DZD')}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
         <div className="p-3 border-t bg-muted/20 flex-shrink-0">
           <DataTablePagination 

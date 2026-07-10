@@ -65,11 +65,11 @@ function ProductFilterSelect({
     queryKey: ['dashboard-products', companyId],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from('v_product_variants_stock')
-        .select('*')
+        .from('products')
+        .select('id, name')
         .eq('company_id', companyId)
         .eq('status', 'active')
-        .order('full_name')
+        .order('name')
       return data || []
     },
     enabled: !!companyId,
@@ -83,8 +83,8 @@ function ProductFilterSelect({
     >
       <option value="all">{t('dashboard.filter_by_product')}</option>
       {products.map((p) => (
-        <option key={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id} value={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id}>
-          {p.full_name}
+        <option key={p.id} value={p.id}>
+          {p.name}
         </option>
       ))}
     </select>
@@ -283,16 +283,11 @@ export default function DashboardPage() {
         .gte('created_at', startDateStr)
 
       if (activeProduct) {
-        const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
         // Need to filter by product — get order IDs with that product
         let oiQuery = (supabase as any)
           .from('sales_order_items')
           .select('sales_order_id')
-          .eq('product_id', fProdId)
-        
-        if (fVarId && fVarId !== 'null') {
-          oiQuery = oiQuery.eq('variant_id', fVarId)
-        }
+          .eq('product_id', activeProduct)
 
         const { data: orderItems } = await oiQuery
         const orderIds = (orderItems || []).map((i: any) => i.sales_order_id)
@@ -313,11 +308,7 @@ export default function DashboardPage() {
         .gte('sales_orders.created_at', startDateStr)
 
       if (activeProduct) {
-        const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
-        itemsQuery = itemsQuery.eq('product_id', fProdId)
-        if (fVarId && fVarId !== 'null') {
-          itemsQuery = itemsQuery.eq('variant_id', fVarId)
-        }
+        itemsQuery = itemsQuery.eq('product_id', activeProduct)
       }
 
       const { data: items } = await itemsQuery
@@ -340,18 +331,8 @@ export default function DashboardPage() {
         const pIds = productRows.map((p: any) => p.id)
         let smQuery = (supabase as any)
           .from('stock_movements')
-          .select('quantity, product_id, variant_id')
+          .select('quantity, product_id')
           .in('product_id', pIds)
-          
-        if (activeProduct) {
-          const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
-          if (fVarId && fVarId !== 'null') {
-            smQuery = smQuery.eq('variant_id', fVarId)
-          } else if (fVarId === 'null') {
-             // Exact match for product-only (no variant) is tricky via PostgREST, but we do what we can
-             smQuery = smQuery.is('variant_id', null)
-          }
-        }
         
         const { data: stockData } = await smQuery
         totalStock = (stockData || []).reduce((sum: number, m: any) => sum + (m.quantity || 0), 0)
@@ -388,15 +369,10 @@ export default function DashboardPage() {
         .gte('created_at', startDateStr)
 
       if (activeProduct) {
-        const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
         let oiQuery = (supabase as any)
           .from('sales_order_items')
           .select('sales_order_id')
-          .eq('product_id', fProdId)
-
-        if (fVarId && fVarId !== 'null') {
-          oiQuery = oiQuery.eq('variant_id', fVarId)
-        }
+          .eq('product_id', activeProduct)
 
         const { data: oi } = await oiQuery
         const ids = (oi || []).map((i: any) => i.sales_order_id)
@@ -418,13 +394,7 @@ export default function DashboardPage() {
         .gte('charge_date', startDate.toISOString().split('T')[0])
 
       if (activeProduct) {
-        const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
-        costsQuery = costsQuery.eq('product_id', fProdId)
-        if (fVarId && fVarId !== 'null') {
-          costsQuery = costsQuery.eq('variant_id', fVarId)
-        } else if (fVarId === 'null') {
-          costsQuery = costsQuery.is('variant_id', null)
-        }
+        costsQuery = costsQuery.eq('product_id', activeProduct)
       }
 
       const { data: charges } = await costsQuery

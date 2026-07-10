@@ -40,7 +40,7 @@ const chargeSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
   charge_date: z.string().min(1, 'Date is required'),
-  product_variant_key: z.string().min(1, 'Product is required'),
+  product_id: z.string().min(1, 'Product is required'),
   notes: z.string().optional(),
   is_recurring: z.boolean().default(false),
   recurring_interval: z.string().optional(),
@@ -58,16 +58,16 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
   const { t } = useTranslation(['commerce', 'common'])
   const { company, user } = useAuthStore()
 
-  const { data: products } = useQuery({
+  const { data: products } = useQuery<any[]>({
     queryKey: ['active_products', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
       const { data, error } = await supabase
-        .from('v_product_variants_stock')
-        .select('*')
+        .from('products')
+        .select('id, name, sku')
         .eq('company_id', company.id)
         .eq('status', 'active')
-        .order('full_name')
+        .order('name')
       if (error) throw error
       return data || []
     },
@@ -80,7 +80,7 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
       description: '',
       amount: 0,
       charge_date: format(new Date(), 'yyyy-MM-dd'),
-      product_variant_key: '',
+      product_id: '',
       notes: '',
       is_recurring: false,
       recurring_interval: 'monthly',
@@ -91,14 +91,10 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
     if (!company?.id) return
 
     try {
-      const isVariant = data.product_variant_key.includes('|')
-      const productId = isVariant ? data.product_variant_key.split('|')[0] : data.product_variant_key
-      const variantId = isVariant ? data.product_variant_key.split('|')[1] : null
-
       const { error } = await supabase.from('product_charges').insert({
         company_id: company.id,
-        product_id: productId,
-        variant_id: variantId,
+        product_id: data.product_id,
+        variant_id: null,
         description: data.description,
         amount: data.amount,
         charge_date: data.charge_date,
@@ -116,7 +112,7 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
         description: '',
         amount: 0,
         charge_date: format(new Date(), 'yyyy-MM-dd'),
-        product_variant_key: '',
+        product_id: '',
         notes: '',
         is_recurring: false,
         recurring_interval: 'monthly',
@@ -185,20 +181,20 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
 
             <FormField
               control={form.control}
-              name="product_variant_key"
+              name="product_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('commerce:charges.product', { defaultValue: 'Product / Variant' })} *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <FormLabel>{t('commerce:products.product_name', { defaultValue: 'Product' })} *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={t('commerce:charges.select_product', { defaultValue: 'Select a product...' })} />
+                        <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(products as any[])?.map((p: any) => (
-                        <SelectItem key={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id} value={p.variant_id ? `${p.product_id}|${p.variant_id}` : p.product_id}>
-                          {p.full_name}
+                      {products?.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} {p.sku && `(${p.sku})`}
                         </SelectItem>
                       ))}
                     </SelectContent>

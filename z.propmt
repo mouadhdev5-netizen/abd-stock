@@ -115,12 +115,45 @@ by the way in charges it should also be specified by product varaint and in the 
 + when i selected a product even it has charges it did not register as costs somehow + the style of the chart should be better
 
 ------------------------------------------------------------------------------------------- here
-edit variant photo
+in inventory in stock we need to see the hole product and drop down menu to its variants 
 
 when selecting items it is better to seach by name or barcode 5atach in 1000 items it is hard
 
 I need to see users in the users tab for some reasons they are not showned
 
 +user roles should be studied more a viewer cannot edit in the db so do the study of each role and give it its own permissions
+
+section de facture
+
+whatsapp section galak maybe on desktop
+
+swala7 I guess will be with product not variants
+
+-------------------------------------------------------------------------------------------
+so since we finished everything I want you to do a full implementation plan where we try to fix
+inventory we need to showcase product with drop down to his variant and add stock to variants
+
+in selecting product in drop down menus we need to search by name and enter them
+
+in dashboard we need to search product and statistics are based by product not item variants
+
+and in charges also need to be by product not product variants
+
+I need to see users in the users tab for some reasons they are not showned
+
++user roles should be studied more a viewer cannot edit in the db so do the study of each role and give it its own permissions
+
+section de facture for both client factures and suplliers one and livraision
+
+the api in the commands is not working for some reasons
+
+and we need to make it in electron again since whats app functionality can be done on desktop app
+
+stock logs are ass design need to be clearer
+
+and why when I add product in sales it is ass + calculation are not counting(same for commands)
+
+-------------------------------------------------------------------------------------------
+we need his opinion to further improve //keli gali telegram chaya nal9ah 5ir so tomorrow nchalah
 
 5awi db

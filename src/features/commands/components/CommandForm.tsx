@@ -29,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import { InlineSearch } from '@/components/ui/InlineSearch'
+import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from '@/features/sales/components/QuickAddCustomerForm'
 import { createShipment, YalidinShipmentInput } from '@/lib/yalidin'
 
@@ -266,31 +267,12 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
         <div className="flex-1 space-y-4">
           <div className="border rounded-md p-4 bg-muted/30">
             <h3 className="font-semibold mb-2">{t('add_products')}</h3>
-            <InlineSearch
-              value={productSearch}
-              onChange={(val) => {
-                setProductSearch(val)
-              }}
-              placeholder="Search products or scan barcode..."
-              onBarcodeScan={handleBarcodeScan}
+            <ProductCombobox
+              companyId={company?.id}
+              value=""
+              onChange={(val, product) => addProductToCart(product)}
+              placeholder={t('commerce:commands.search_products_barcode', { defaultValue: 'Search products...' })}
             />
-            {productSearch && products && products.length > 0 && (
-              <div className="mt-2 border rounded-md bg-background shadow-md max-h-48 overflow-auto">
-                {products.map(p => (
-                  <div 
-                    key={p.product_id} 
-                    className="p-2 hover:bg-muted cursor-pointer flex justify-between items-center"
-                    onClick={() => addProductToCart(p)}
-                  >
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">{t('common:labels.stock', { defaultValue: 'Stock' })}: {p.total_qty_available}</div>
-                    </div>
-                    <div className="font-semibold">{formatCurrency(p.sell_price, company?.currency || 'DZD')}</div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="border rounded-md">
@@ -321,9 +303,9 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                           name={`items.${index}.quantity`}
                           render={({ field }) => (
                             <FormItem className="w-20">
-                              <FormLabel className="text-[10px] text-muted-foreground">Qty</FormLabel>
+                              <FormLabel className="text-[10px] text-muted-foreground">{t('labels.quantity', { ns: 'common', defaultValue: 'Qty' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" min="1" className="h-8" {...field} />
+                                <Input type="number" min="1" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
                               </FormControl>
                             </FormItem>
                           )}
@@ -333,9 +315,9 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                           name={`items.${index}.unit_price`}
                           render={({ field }) => (
                             <FormItem className="w-28">
-                              <FormLabel className="text-[10px] text-muted-foreground">Unit Price</FormLabel>
+                              <FormLabel className="text-[10px] text-muted-foreground">{t('commerce:commands.unit_cost', { defaultValue: 'Unit Cost' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" step="0.01" min="0" className="h-8" {...field} />
+                                <Input type="number" min="0" step="0.01" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
                               </FormControl>
                             </FormItem>
                           )}

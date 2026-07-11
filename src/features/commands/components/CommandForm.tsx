@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from 'react-i18next'
@@ -109,7 +109,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
     control: form.control,
   })
 
-  const formItems = form.watch('items')
+  const formItems = useWatch({ name: 'items', control: form.control }) || []
 
   const { subtotal, grandTotal } = useMemo(() => {
     let sub = 0

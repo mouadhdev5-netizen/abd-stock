@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from 'react-i18next'
@@ -115,9 +115,9 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   })
 
   // Calculate totals dynamically
-  const formItems = form.watch('items')
-  const discountTotal = form.watch('discount_total')
-  const amountPaid = form.watch('amount_paid')
+  const formItems = useWatch({ name: 'items', control: form.control }) || []
+  const discountTotal = useWatch({ name: 'discount_total', control: form.control }) || 0
+  const amountPaid = useWatch({ name: 'amount_paid', control: form.control }) || 0
 
   const { subtotal, taxTotal, grandTotal, dueAmount } = useMemo(() => {
     let sub = 0
@@ -181,7 +181,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         unit_price: product.sell_price,
         catalog_price: product.sell_price,
         discount: 0,
-        tax_rate: 19, // Default VAT
+        tax_rate: 0, // Default to 0 instead of 19
         max_stock: product.total_qty_available
       })
     }

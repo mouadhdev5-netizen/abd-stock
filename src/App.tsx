@@ -1,5 +1,5 @@
 import { useEffect, Suspense, lazy } from 'react'
-import { Routes, Route, Navigate, BrowserRouter } from 'react-router-dom'
+import { Routes, Route, Navigate, HashRouter } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -93,13 +93,13 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
 
 const RequireRole = ({ children, allowedRoles, fallbackPath = "/commerce/dashboard" }: { children: React.ReactNode, allowedRoles: string[], fallbackPath?: string }) => {
   const { profile } = useAuthStore()
-  
+
   if (!profile) return <Navigate to="/login" replace />
-  
+
   if (!allowedRoles.includes(profile.role)) {
     return <Navigate to={fallbackPath} replace />
   }
-  
+
   return <>{children}</>
 }
 
@@ -180,7 +180,7 @@ export default function App() {
   }, [setUser, setLoading])
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public */}
@@ -212,9 +212,10 @@ export default function App() {
             <Route path="commerce/inventory/stock" element={<StockPage />} />
             <Route path="commerce/inventory/logs" element={<StockMovementsPage />} />
 
-            {/* Customers & Charges */}
+            {/* Customers, Charges & Invoices */}
             <Route path="commerce/customers" element={<CustomersPage />} />
             <Route path="commerce/charges" element={<ChargesPage />} />
+            <Route path="commerce/invoices" element={<InvoicesPage />} />
 
             {/* ── PRODUCTION ── */}
             <Route path="production/dashboard" element={<ProductionDashboardPage />} />
@@ -242,6 +243,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/commerce/dashboard" replace />} />
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

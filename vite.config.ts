@@ -2,8 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// Pure React web app — no Electron
+// Pure React web app — packaged with Electron
 export default defineConfig({
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

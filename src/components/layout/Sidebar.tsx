@@ -24,6 +24,7 @@ import {
   MessageSquare,
   ShieldAlert,
   Receipt,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -112,6 +113,11 @@ export function Sidebar() {
           name: t('commerce:charges.title', 'Charges'),
           href: '/commerce/charges',
           icon: BadgeDollarSign,
+        },
+        {
+          name: t('commerce:invoices.title', 'Factures'),
+          href: '/commerce/invoices',
+          icon: FileText,
         },
       ],
     },

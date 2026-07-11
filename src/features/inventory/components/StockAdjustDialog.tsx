@@ -129,7 +129,9 @@ export function StockAdjustDialog({ product, variant, isOpen, onClose, onSuccess
     }
   }
 
-  const title = variant ? `${product?.name} - ${variant?.name}` : product?.name
+  const productName = product?.name || product?.product_name || 'Product'
+  const variantName = variant?.name || variant?.variant_name
+  const title = variantName ? `${productName} - ${variantName}` : productName
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

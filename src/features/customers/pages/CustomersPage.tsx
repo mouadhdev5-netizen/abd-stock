@@ -20,6 +20,7 @@ import { formatCurrency } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export'
 
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
+import { WhatsAppButton } from '@/components/ui/WhatsAppButton'
 import { CustomerDetailPanel } from '../components/CustomerDetailPanel'
 
 export default function CustomersPage() {
@@ -226,7 +227,12 @@ export default function CustomersPage() {
                     <TableCell className="font-medium text-primary">
                       {customer.name}
                     </TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        {customer.phone || '-'}
+                        {customer.phone && <WhatsAppButton phone={customer.phone} />}
+                      </div>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate" title={customer.address}>
                       {customer.address || '-'}
                     </TableCell>

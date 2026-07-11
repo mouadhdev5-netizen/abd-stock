@@ -27,10 +27,9 @@ function createWindow() {
   // Handle WhatsApp popup internally or with a BrowserView if needed
   // For now, external links open in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.includes('whatsapp.com')) {
-      // You could handle this as a native window, but default browser is usually preferred
-      // require('electron').shell.openExternal(url);
-      return { action: 'allow' };
+    if (url.includes('whatsapp.com') || url.includes('wa.me') || url.startsWith('whatsapp://')) {
+      require('electron').shell.openExternal(url);
+      return { action: 'deny' };
     }
     return { action: 'allow' };
   });
@@ -65,7 +64,8 @@ ipcMain.handle('print-document', async (event, options) => {
 const https = require('https');
 
 const YALIDIN_BASE_URL = 'api.yalidin.com';
-const YALIDIN_KEY = 'A2f6u0zGFoV0iprNTdICKfHhnbPQa3DySQ2hiNULhlEZDn4gzArNtrgJcPUw';
+const YALIDIN_API_ID = process.env.YALIDIN_API_ID || 'YOUR_API_ID';
+const YALIDIN_API_TOKEN = process.env.YALIDIN_API_TOKEN || 'A2f6u0zGFoV0iprNTdICKfHhnbPQa3DySQ2hiNULhlEZDn4gzArNtrgJcPUw';
 
 function nodeHttpRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -89,17 +89,21 @@ function nodeHttpRequest(options, body) {
 ipcMain.handle('yalidin-api', async (event, { action, payload }) => {
   try {
     let result;
+    const headers = {
+      'X-API-ID': YALIDIN_API_ID,
+      'X-API-TOKEN': YALIDIN_API_TOKEN,
+      'Content-Type': 'application/json',
+    };
+
     if (action === 'createShipment') {
       const body = JSON.stringify(payload);
+      headers['Content-Length'] = Buffer.byteLength(body);
+      
       result = await nodeHttpRequest({
         hostname: YALIDIN_BASE_URL,
         path: '/v1/parcels/',
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${YALIDIN_KEY}`,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-        },
+        headers,
       }, body);
     } else if (action === 'getShipmentStatus') {
       const trackingQuery = payload.join(',');
@@ -108,7 +112,8 @@ ipcMain.handle('yalidin-api', async (event, { action, payload }) => {
         path: `/v1/histories/?tracking=${trackingQuery}`,
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${YALIDIN_KEY}`,
+          'X-API-ID': YALIDIN_API_ID,
+          'X-API-TOKEN': YALIDIN_API_TOKEN,
         },
       }, null);
     } else {

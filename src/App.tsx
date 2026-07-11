@@ -91,6 +91,18 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
+const RequireRole = ({ children, allowedRoles, fallbackPath = "/commerce/dashboard" }: { children: React.ReactNode, allowedRoles: string[], fallbackPath?: string }) => {
+  const { profile } = useAuthStore()
+  
+  if (!profile) return <Navigate to="/login" replace />
+  
+  if (!allowedRoles.includes(profile.role)) {
+    return <Navigate to={fallbackPath} replace />
+  }
+  
+  return <>{children}</>
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   useRealtimeSync()
@@ -212,11 +224,11 @@ export default function App() {
             <Route path="production/whatsapp" element={<WhatsAppPage />} />
 
             {/* ── ADMINISTRATION ── */}
-            <Route path="admin/users" element={<UsersPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="settings/audit-logs" element={<AuditLogsPage />} />
-            <Route path="branches" element={<BranchesPage />} />
-            <Route path="warehouses" element={<WarehousesPage />} />
+            <Route path="admin/users" element={<RequireRole allowedRoles={['super_admin', 'commerce_manager', 'production_manager']}><UsersPage /></RequireRole>} />
+            <Route path="settings" element={<RequireRole allowedRoles={['super_admin', 'commerce_manager', 'production_manager']}><SettingsPage /></RequireRole>} />
+            <Route path="settings/audit-logs" element={<RequireRole allowedRoles={['super_admin', 'commerce_manager', 'production_manager']}><AuditLogsPage /></RequireRole>} />
+            <Route path="branches" element={<RequireRole allowedRoles={['super_admin', 'commerce_manager', 'production_manager']}><BranchesPage /></RequireRole>} />
+            <Route path="warehouses" element={<RequireRole allowedRoles={['super_admin', 'commerce_manager', 'production_manager']}><WarehousesPage /></RequireRole>} />
 
             {/* Legacy routes kept for backwards compatibility */}
             <Route path="purchases" element={<PurchasesPage />} />

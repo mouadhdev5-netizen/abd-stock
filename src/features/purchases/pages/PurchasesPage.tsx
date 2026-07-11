@@ -48,7 +48,8 @@ export default function PurchasesPage() {
         .from('purchase_orders')
         .select(`
           *,
-          suppliers(name)
+          suppliers(name, tax_id, phone),
+          purchase_order_items(*, products(name), product_variants(name))
         `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false })

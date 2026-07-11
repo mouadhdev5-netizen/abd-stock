@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Eye, Filter } from 'lucide-react'
+import { Search, Eye, Filter, FileText, Package } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { generateInvoicePDF } from '@/lib/export'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
 import { InlineSearch } from '@/components/ui/InlineSearch'
 import { CommandStatusBadge } from '../components/CommandStatusBadge'
@@ -46,8 +47,8 @@ export default function EnCoursPage() {
         .from('commands')
         .select(`
           *,
-          customers(name, phone),
-          command_items(count)
+          customers(name, phone, address),
+          command_items(*, products(name), product_variants(name))
         `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false })
@@ -204,7 +205,7 @@ export default function EnCoursPage() {
                       {(command.customers as any)?.name || 'Walk-in Customer'}
                     </TableCell>
                     <TableCell>
-                      {command.command_items?.[0]?.count || 0} items
+                      {command.command_items?.length || 0} items
                     </TableCell>
                     <TableCell>
                       {command.yalidin_tracking_id ? (
@@ -234,9 +235,17 @@ export default function EnCoursPage() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedCommand(command)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedCommand(command)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => generateInvoicePDF(command, company, 'Command')} title="Imprimer Bon de Commande">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => generateInvoicePDF(command, company, 'Delivery Note')} title="Imprimer Bon de Livraison">
+                          <Package className="h-4 w-4 text-green-600" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

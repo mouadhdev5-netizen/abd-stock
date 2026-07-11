@@ -156,8 +156,40 @@ export function MessageComposer() {
       
       if (error) throw error
       
-      // MOCK ACTUALLY SENDING VIA WA BACKEND HERE
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // ACTUALLY SENDING VIA WA DESKTOP APP NATIVELY
+      let sentCount = 0;
+      for (const customer of targetAudience) {
+        if (!customer.phone) continue;
+        
+        let formatted = customer.phone.replace(/\s+/g, '')
+        if (formatted.startsWith('0')) {
+          formatted = '213' + formatted.substring(1)
+        }
+        
+        // Process variables for this specific customer
+        let customerMsg = rawBody
+        customerMsg = customerMsg.replace(/\{\{customer_name\}\}/g, customer.full_name || '')
+        
+        if (audienceMode === 'product' && selectedProductId) {
+          const p = products?.find(p => p.id === selectedProductId)
+          customerMsg = customerMsg.replace(/\{\{product_name\}\}/g, p?.name || '')
+        } else {
+          customerMsg = customerMsg.replace(/\{\{product_name\}\}/g, '')
+        }
+        customerMsg = customerMsg.replace(/\{\{product_url\}\}/g, productUrl || '')
+        
+        // Open native WhatsApp deep link
+        const url = `whatsapp://send?phone=${formatted}&text=${encodeURIComponent(customerMsg)}`
+        window.open(url, '_blank')
+        
+        sentCount++;
+        // Small delay to allow the OS to process the deep link before firing the next one
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+      
+      if (sentCount === 0) {
+        throw new Error('None of the selected customers have a valid phone number.')
+      }
     },
     onSuccess: () => {
       alert(`Message successfully sent to ${targetAudience.length} recipients!`)

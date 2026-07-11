@@ -156,21 +156,20 @@ export function ConnectSection() {
           </ol>
         </div>
 
-        <div className="bg-amber-50 dark:bg-amber-950/30 border-t border-amber-200 dark:border-amber-900 p-4">
-          <p className="text-xs text-amber-800 dark:text-amber-400 text-center flex items-center justify-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            WhatsApp integration requires a backend service (e.g., Baileys/WWebJS) which is currently stubbed out.
+        <div className="bg-blue-50 dark:bg-blue-950/30 border-t border-blue-200 dark:border-blue-900 p-4">
+          <p className="text-xs text-blue-800 dark:text-blue-400 text-center">
+            <strong>Note:</strong> Bulk messaging works by launching the native WhatsApp Desktop app for each recipient. 
+            No backend or API key is required. Make sure WhatsApp is installed on this computer.
           </p>
           <div className="mt-4 flex justify-center">
             <Button 
               size="sm" 
-              variant="outline" 
               onClick={simulateConnection}
               disabled={isSimulating}
-              className="w-full border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isSimulating && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-              {t('production:whatsapp.connect.simulate', { defaultValue: 'Simulate Connection for Demo' })}
+              Acknowledge & Enable
             </Button>
           </div>
         </div>

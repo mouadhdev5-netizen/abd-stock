@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
-import { formatCurrency } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export'
 import { format } from 'date-fns'
 
@@ -18,7 +17,7 @@ export default function StockMovementsPage() {
   const { company } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({})
-  
+
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(20)
 
@@ -66,9 +65,9 @@ export default function StockMovementsPage() {
   const filteredMovements = (movements as any[])?.filter(m => {
     const prodName = (m.products as any)?.name?.toLowerCase() || ''
     const sku = (m.products as any)?.sku?.toLowerCase() || ''
-    const matchesSearch = prodName.includes(searchTerm.toLowerCase()) || 
-                          sku.includes(searchTerm.toLowerCase())
-    
+    const matchesSearch = prodName.includes(searchTerm.toLowerCase()) ||
+      sku.includes(searchTerm.toLowerCase())
+
     const typeFilter = activeFilters['movement_type']
     const matchesType = typeFilter?.length > 0 ? typeFilter.includes(m.movement_type) : true
 
@@ -121,7 +120,7 @@ export default function StockMovementsPage() {
     if (m.movement_type === 'initial') {
       return t('commerce:inventory.log_initial', { defaultValue: `[{{user}}] set initial stock of {{qty}} for [{{product}}]`, user, qty, product })
     }
-    
+
     // Default fallback
     return `${user} did ${m.movement_type} of ${isPositive ? '+' : '-'}${qty} for ${product}`
   }
@@ -153,7 +152,7 @@ export default function StockMovementsPage() {
           />
         </div>
 
-        <AdvancedFilter 
+        <AdvancedFilter
           filters={filters}
           activeFilters={activeFilters}
           onFilterChange={(key, values) => setActiveFilters(prev => ({ ...prev, [key]: values }))}
@@ -161,61 +160,52 @@ export default function StockMovementsPage() {
         />
       </div>
 
-      <div className="flex-1 overflow-auto rounded-xl border bg-card/50 shadow-sm relative">
-        <div className="p-4 space-y-3">
+      <div className="flex-1 overflow-auto rounded-xl border bg-card/50 shadow-sm relative flex flex-col">
+        <div className="overflow-auto flex-1 p-4 space-y-4">
           {isLoading ? (
-            <div className="text-center py-10 text-muted-foreground animate-pulse">Loading ledger...</div>
-          ) : filteredMovements?.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground bg-card rounded-lg border border-dashed">No movements found.</div>
+            <div className="text-center py-10 text-muted-foreground">Loading activity...</div>
+          ) : paginatedMovements.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">No stock movements found.</div>
           ) : (
-            paginatedMovements?.map((m) => {
+            paginatedMovements.map((m: any) => {
               const isPositive = m.quantity > 0
-              const isSale = m.movement_type === 'sale'
-              const isPurchase = m.movement_type === 'purchase'
-              const isAdjust = m.movement_type.includes('adjust')
+              const qtyClass = isPositive ? 'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'
+              const bgClass = isPositive ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/30' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30'
+              const icon = isPositive ? <ArrowUpRight className="h-5 w-5 text-green-600" /> : <ArrowDownRight className="h-5 w-5 text-red-600" />
+              const user = (m.profiles as any)?.full_name || 'System'
+              const baseProduct = (m.products as any)?.name || 'Unknown Product'
+              const variantName = (m.product_variants as any)?.name
+              const product = variantName ? `${baseProduct} (${variantName})` : baseProduct
+              const ref = m.ref_id || m.notes
               
-              let typeColor = "bg-muted text-foreground"
-              if (isSale) typeColor = "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-              if (isPurchase) typeColor = "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-              if (isAdjust) typeColor = "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+              let actionWord = isPositive ? 'added' : 'removed'
+              if (m.movement_type === 'sale') actionWord = 'sold'
+              if (m.movement_type === 'purchase') actionWord = 'received from purchase'
+              if (m.movement_type === 'return') actionWord = 'returned'
 
               return (
-                <div key={m.id} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-xl bg-card hover:border-primary/30 transition-colors group relative overflow-hidden">
-                  {/* Color Accent Bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${isPositive ? 'bg-success' : 'bg-destructive'} opacity-70`}></div>
-                  
-                  {/* Header / Date */}
-                  <div className="w-full sm:w-32 flex-shrink-0 flex flex-col justify-center pl-2">
-                    <span className="text-sm font-medium">{format(new Date(m.created_at), 'MMM dd, yyyy')}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(m.created_at), 'HH:mm')}</span>
+                <div key={m.id} className={`flex items-start gap-4 p-4 rounded-lg border ${bgClass}`}>
+                  <div className="mt-1 bg-background p-2 rounded-full border shadow-sm">
+                    {icon}
                   </div>
-                  
-                  {/* Main Content */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold truncate text-base">{(m.products as any)?.name}</span>
-                      {(m.products as any)?.sku && (
-                        <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0">{(m.products as any)?.sku}</Badge>
-                      )}
-                      <Badge className={`ml-auto sm:ml-0 text-[10px] border-0 ${typeColor} uppercase`}>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-base text-foreground">
+                      <span className="font-semibold">{user}</span> {actionWord}{' '}
+                      <span className={qtyClass}>{Math.abs(m.quantity)} units</span> of{' '}
+                      <span className="font-semibold">{product}</span>.
+                    </p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{format(new Date(m.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                      <span>•</span>
+                      <span className="uppercase text-xs tracking-wider font-semibold opacity-70">
                         {m.movement_type.replace('_', ' ')}
-                      </Badge>
+                      </span>
                     </div>
-                    <div className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                      {generateHumanReadableLog(m)}
-                    </div>
-                  </div>
-
-                  {/* Amounts */}
-                  <div className="w-full sm:w-48 flex-shrink-0 flex sm:flex-col justify-between items-center sm:items-end sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 mt-3 sm:mt-0 border-border">
-                    <div className={`flex items-center gap-1.5 text-lg font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                      {isPositive ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
-                      <span>{Math.abs(m.quantity)}</span>
-                    </div>
-                    <div className="text-xs font-medium text-muted-foreground mt-1 text-right">
-                      <span className="opacity-70">Value: </span>
-                      <span className="text-foreground">{formatCurrency(Math.abs(m.quantity) * m.unit_cost, company?.currency || 'DZD')}</span>
-                    </div>
+                    {ref && (
+                      <p className="text-sm text-muted-foreground mt-2 italic bg-background/50 inline-block px-2 py-1 rounded">
+                        " {ref} "
+                      </p>
+                    )}
                   </div>
                 </div>
               )
@@ -223,7 +213,7 @@ export default function StockMovementsPage() {
           )}
         </div>
         <div className="p-3 border-t bg-muted/20 flex-shrink-0">
-          <DataTablePagination 
+          <DataTablePagination
             pageIndex={pageIndex}
             pageSize={pageSize}
             totalCount={totalCount}

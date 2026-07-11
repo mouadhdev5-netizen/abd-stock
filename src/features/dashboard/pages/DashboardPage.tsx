@@ -274,47 +274,47 @@ export default function DashboardPage() {
     queryFn: async () => {
       if (!companyId) return { totalSales: 0, totalRevenue: 0, totalItemsSold: 0, totalStock: 0 }
 
-      // Total Sales count + Revenue
-      let salesQuery = (supabase as any)
-        .from('sales_orders')
-        .select('id, total', { count: 'exact' })
-        .eq('company_id', companyId)
-        .neq('status', 'cancelled')
-        .gte('created_at', startDateStr)
+      let totalSales = 0
+      let totalRevenue = 0
+      let totalItemsSold = 0
 
       if (activeProduct) {
-        // Need to filter by product — get order IDs with that product
-        let oiQuery = (supabase as any)
+        // If filtering by product, we query order items directly
+        const { data: items } = await (supabase as any)
           .from('sales_order_items')
-          .select('sales_order_id')
+          .select('quantity, total, sales_orders!inner(id, company_id, status, created_at)')
+          .eq('sales_orders.company_id', companyId)
+          .neq('sales_orders.status', 'cancelled')
+          .gte('sales_orders.created_at', startDateStr)
           .eq('product_id', activeProduct)
 
-        const { data: orderItems } = await oiQuery
-        const orderIds = (orderItems || []).map((i: any) => i.sales_order_id)
-        if (orderIds.length === 0) return { totalSales: 0, totalRevenue: 0, totalItemsSold: 0, totalStock: 0 }
-        salesQuery = salesQuery.in('id', orderIds)
+        totalRevenue = (items || []).reduce((sum: number, i: any) => sum + (i.total || 0), 0)
+        totalItemsSold = (items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)
+        const uniqueOrders = new Set((items || []).map((i: any) => i.sales_orders.id))
+        totalSales = uniqueOrders.size
+      } else {
+        // General query for all products
+        const { data: salesOrders, count } = await (supabase as any)
+          .from('sales_orders')
+          .select('id, total', { count: 'exact' })
+          .eq('company_id', companyId)
+          .neq('status', 'cancelled')
+          .gte('created_at', startDateStr)
+
+        totalRevenue = (salesOrders || []).reduce((sum: number, o: any) => sum + (o.total || 0), 0)
+        totalSales = count || 0
+
+        const { data: items } = await (supabase as any)
+          .from('sales_order_items')
+          .select('quantity, sales_orders!inner(company_id, status, created_at)')
+          .eq('sales_orders.company_id', companyId)
+          .neq('sales_orders.status', 'cancelled')
+          .gte('sales_orders.created_at', startDateStr)
+
+        totalItemsSold = (items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)
       }
 
-      const { data: salesOrders, count } = await salesQuery
-      const totalRevenue = (salesOrders || []).reduce((sum: number, o: any) => sum + (o.total || 0), 0)
-      const totalSales = count || 0
-
-      // Items sold
-      let itemsQuery = (supabase as any)
-        .from('sales_order_items')
-        .select('quantity, sales_orders!inner(company_id, status, created_at)')
-        .eq('sales_orders.company_id', companyId)
-        .neq('sales_orders.status', 'cancelled')
-        .gte('sales_orders.created_at', startDateStr)
-
-      if (activeProduct) {
-        itemsQuery = itemsQuery.eq('product_id', activeProduct)
-      }
-
-      const { data: items } = await itemsQuery
-      const totalItemsSold = (items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)
-
-      // Stock — use products table with stock_movements aggregate
+      // Stock
       let stockQuery = (supabase as any)
         .from('products')
         .select('id')
@@ -331,7 +331,7 @@ export default function DashboardPage() {
         const pIds = productRows.map((p: any) => p.id)
         let smQuery = (supabase as any)
           .from('stock_movements')
-          .select('quantity, product_id')
+          .select('quantity')
           .in('product_id', pIds)
         
         const { data: stockData } = await smQuery
@@ -361,30 +361,32 @@ export default function DashboardPage() {
       })
 
       // Revenue per day
-      let soQuery = (supabase as any)
-        .from('sales_orders')
-        .select('total, created_at')
-        .eq('company_id', companyId)
-        .neq('status', 'cancelled')
-        .gte('created_at', startDateStr)
-
       if (activeProduct) {
-        let oiQuery = (supabase as any)
+        const { data: oi } = await (supabase as any)
           .from('sales_order_items')
-          .select('sales_order_id')
+          .select('total, sales_orders!inner(company_id, status, created_at)')
+          .eq('sales_orders.company_id', companyId)
+          .neq('sales_orders.status', 'cancelled')
+          .gte('sales_orders.created_at', startDateStr)
           .eq('product_id', activeProduct)
 
-        const { data: oi } = await oiQuery
-        const ids = (oi || []).map((i: any) => i.sales_order_id)
-        if (ids.length > 0) soQuery = soQuery.in('id', ids)
-        else return Object.values(dayMap)
-      }
+        ;(oi || []).forEach((item: any) => {
+          const key = format(parseISO(item.sales_orders.created_at), 'dd/MM', { locale: dateLocale })
+          if (dayMap[key]) dayMap[key].revenue += item.total || 0
+        })
+      } else {
+        const { data: orders } = await (supabase as any)
+          .from('sales_orders')
+          .select('total, created_at')
+          .eq('company_id', companyId)
+          .neq('status', 'cancelled')
+          .gte('created_at', startDateStr)
 
-      const { data: orders } = await soQuery
-      ;(orders || []).forEach((o: any) => {
-        const key = format(parseISO(o.created_at), 'dd/MM', { locale: dateLocale })
-        if (dayMap[key]) dayMap[key].revenue += o.total || 0
-      })
+        ;(orders || []).forEach((o: any) => {
+          const key = format(parseISO(o.created_at), 'dd/MM', { locale: dateLocale })
+          if (dayMap[key]) dayMap[key].revenue += o.total || 0
+        })
+      }
 
       // Costs per day from product_charges
       let costsQuery = (supabase as any)
@@ -412,58 +414,66 @@ export default function DashboardPage() {
   const { data: bestCustomers = [], isLoading: customersLoading } = useQuery<BestCustomer[]>({
     queryKey: ['commerce-best-customers', companyId, dateRange, productFilter],
     queryFn: async () => {
-      if (!companyId) return []
-
-      let query = (supabase as any)
-        .from('sales_orders')
-        .select(`
-          customer_id,
-          total,
-          customers!inner(id, name)
-        `)
-        .eq('company_id', companyId)
-        .neq('status', 'cancelled')
-        .gte('created_at', startDateStr)
-        .not('customer_id', 'is', null)
-
       if (activeProduct) {
-        const [fProdId, fVarId] = activeProduct.includes('|') ? activeProduct.split('|') : [activeProduct, null]
-        let oiQuery = (supabase as any)
+        const { data: items } = await (supabase as any)
           .from('sales_order_items')
-          .select('sales_order_id')
-          .eq('product_id', fProdId)
-          
-        if (fVarId && fVarId !== 'null') {
-          oiQuery = oiQuery.eq('variant_id', fVarId)
-        }
+          .select('total, sales_orders!inner(id, company_id, status, created_at, customer_id, customers(id, name))')
+          .eq('sales_orders.company_id', companyId)
+          .neq('sales_orders.status', 'cancelled')
+          .gte('sales_orders.created_at', startDateStr)
+          .not('sales_orders.customer_id', 'is', null)
+          .eq('product_id', activeProduct)
 
-        const { data: oi } = await oiQuery
-        const ids = (oi || []).map((i: any) => i.sales_order_id)
-        if (ids.length > 0) query = query.in('id', ids)
-        else return []
-      }
-
-      const { data: orders } = await query
-
-      // Aggregate by customer
-      const map: Record<string, BestCustomer> = {}
-      ;(orders || []).forEach((o: any) => {
-        if (!o.customer_id || !o.customers) return
-        if (!map[o.customer_id]) {
-          map[o.customer_id] = {
-            id: o.customer_id,
-            name: o.customers.name || '—',
-            order_count: 0,
-            total_spent: 0,
+        // Aggregate by customer
+        const map: Record<string, BestCustomer> = {}
+        const seenOrders = new Set<string>()
+        ;(items || []).forEach((item: any) => {
+          const cId = item.sales_orders.customer_id
+          const customer = item.sales_orders.customers
+          if (!cId || !customer) return
+          if (!map[cId]) {
+            map[cId] = { id: cId, name: customer.name || 'Unknown', order_count: 0, total_spent: 0 }
           }
-        }
-        map[o.customer_id].order_count += 1
-        map[o.customer_id].total_spent += o.total || 0
-      })
+          map[cId].total_spent += item.total || 0
+          if (!seenOrders.has(item.sales_orders.id)) {
+            map[cId].order_count += 1
+            seenOrders.add(item.sales_orders.id)
+          }
+        })
 
-      return Object.values(map)
-        .sort((a, b) => b.total_spent - a.total_spent)
-        .slice(0, 5)
+        return Object.values(map)
+          .sort((a, b) => b.total_spent - a.total_spent)
+          .slice(0, 5)
+      } else {
+        const { data: orders } = await (supabase as any)
+          .from('sales_orders')
+          .select(`
+            id,
+            customer_id,
+            total,
+            customers!inner(id, name)
+          `)
+          .eq('company_id', companyId)
+          .neq('status', 'cancelled')
+          .gte('created_at', startDateStr)
+          .not('customer_id', 'is', null)
+
+        // Aggregate by customer
+        const map: Record<string, BestCustomer> = {}
+        ;(orders || []).forEach((o: any) => {
+          const cId = o.customer_id
+          if (!cId || !o.customers) return
+          if (!map[cId]) {
+            map[cId] = { id: cId, name: o.customers.name || 'Unknown', order_count: 0, total_spent: 0 }
+          }
+          map[cId].order_count += 1
+          map[cId].total_spent += o.total || 0
+        })
+
+        return Object.values(map)
+          .sort((a, b) => b.total_spent - a.total_spent)
+          .slice(0, 5)
+      }
     },
     enabled: !!companyId,
   })

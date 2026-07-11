@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
+import { InlineProductSearch } from './InlineProductSearch'
 import { InlineSearch } from '@/components/ui/InlineSearch'
 import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from './QuickAddCustomerForm'
@@ -316,11 +317,9 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         <div className="flex-1 space-y-4">
           <div className="border rounded-md p-4 bg-muted/30">
             <h3 className="font-semibold mb-2">{t('add_products')}</h3>
-            <ProductCombobox
+            <InlineProductSearch
               companyId={company?.id}
-              value=""
-              onChange={(val, product) => addProductToCart(product)}
-              placeholder={t('commerce:sales.search_products_barcode', { defaultValue: 'Search products or scan barcode...' })}
+              onSelectProduct={(product) => addProductToCart(product)}
             />
           </div>
 

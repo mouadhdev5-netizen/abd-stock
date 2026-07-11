@@ -95,12 +95,13 @@ export function ProductCombobox({
             <CommandEmpty>{t('commerce:products.no_results', { defaultValue: 'No products found.' })}</CommandEmpty>
             <CommandGroup>
               {products?.map((product) => {
-                // value string to pass to CommandItem needs to be search string
                 const itemValue = `${product.product_id}:${product.variant_id || ''}`
+                // Combine name, sku and barcode for search
+                const searchValue = `${product.full_name} ${product.sku || ''} ${product.barcode || ''}`.trim()
                 return (
                   <CommandItem
                     key={itemValue}
-                    value={product.full_name} // Search matches against this
+                    value={searchValue} // Search matches against this
                     onSelect={() => {
                       onChange(itemValue, product)
                       setOpen(false)

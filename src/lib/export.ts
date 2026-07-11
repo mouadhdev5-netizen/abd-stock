@@ -17,7 +17,7 @@ export function exportToExcel(data: any[], filename: string) {
   const worksheet = XLSX.utils.json_to_sheet(data)
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Data')
-  
+
   XLSX.writeFile(workbook, `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
@@ -47,7 +47,7 @@ export async function importFromExcel(file: File): Promise<any[]> {
 /**
  * Generates and downloads a PDF Invoice/Receipt for Sales or Purchases
  */
-export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Purchase') {
+export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Purchase' | 'Command' | 'Delivery Note') {
   if (!order || !company) return
 
   const doc = new jsPDF()
@@ -56,8 +56,8 @@ export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Pur
   // 1. Header (Company Info)
   doc.setFontSize(22)
   doc.setFont('helvetica', 'bold')
-  doc.text(company.name, 14, 20)
-  
+  doc.text(company.name || 'Company Name', 14, 20)
+
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   let currentY = 28
@@ -75,13 +75,20 @@ export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Pur
 
   // 2. Invoice Details (Right Side)
   const isSale = type === 'Sale'
-  const docTitle = isSale ? 'INVOICE / FACTURE' : 'PURCHASE ORDER / BON DE COMMANDE'
-  const orderNumber = isSale ? order.so_number : order.po_number
-  
+  const isPurchase = type === 'Purchase'
+  const isCommand = type === 'Command'
+
+  let docTitle = 'FACTURE'
+  if (isPurchase) docTitle = 'FACTURE FOURNISSEUR'
+  if (isCommand) docTitle = 'BON DE COMMANDE'
+  if (type === 'Delivery Note') docTitle = 'BON DE LIVRAISON'
+
+  const orderNumber = order.so_number || order.po_number || order.id?.substring(0, 8) || '-'
+
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.text(docTitle, pageWidth - 14, 20, { align: 'right' })
-  
+
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text(`No: ${orderNumber}`, pageWidth - 14, 28, { align: 'right' })
@@ -92,37 +99,51 @@ export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Pur
   currentY = 55
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
-  doc.text(isSale ? 'Bill To:' : 'Vendor:', 14, currentY)
-  
+  doc.text(isPurchase ? 'Fournisseur:' : 'Client:', 14, currentY)
+
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  const partner = isSale ? order.customers?.name : order.suppliers?.name
-  const partnerName = partner || (isSale ? 'Walk-in Customer' : 'Unknown Supplier')
+  const partner = isPurchase ? order.suppliers?.name : order.customers?.name
+  const partnerName = partner || (isPurchase ? 'Fournisseur Inconnu' : 'Client Divers')
   doc.text(partnerName, 14, currentY + 6)
-  
-  if (isSale && order.customers) {
+
+  if (!isPurchase && order.customers) {
     if (order.customers.tax_id) doc.text(`NIF: ${order.customers.tax_id}`, 14, currentY + 12)
     if (order.customers.phone) doc.text(`Tel: ${order.customers.phone}`, 14, currentY + 18)
-  } else if (!isSale && order.suppliers) {
+  } else if (isPurchase && order.suppliers) {
     if (order.suppliers.tax_id) doc.text(`NIF: ${order.suppliers.tax_id}`, 14, currentY + 12)
     if (order.suppliers.phone) doc.text(`Tel: ${order.suppliers.phone}`, 14, currentY + 18)
   }
 
   // 4. Items Table
-  const tableData = (order.sales_order_items || order.purchase_order_items || []).map((item: any, index: number) => [
-    index + 1,
-    item.products?.name || item.product_name || 'Unknown Item',
-    item.quantity,
-    formatCurrency(item.unit_price, company.currency),
-    `${item.tax_rate}%`,
-    formatCurrency(item.discount, company.currency),
-    formatCurrency(item.total, company.currency)
-  ])
+  const items = order.sales_order_items || order.purchase_order_items || order.items || order.command_items || []
+  let totalCalculated = 0
 
-  // @ts-expect-error autotable types
+  const tableData = items.map((item: any, index: number) => {
+    const qty = item.quantity || 0
+    const price = item.unit_price || item.cost_price || item.price || 0
+    const discount = item.discount || 0
+    const lineTotal = (qty * price) - discount
+    totalCalculated += lineTotal
+
+    const productName = item.products?.name || item.product_name || 'Produit'
+    const variantName = item.product_variants?.name
+    const desc = variantName ? `${productName} - ${variantName}` : productName
+
+    return [
+      index + 1,
+      desc,
+      qty.toString(),
+      formatCurrency(price, company.currency),
+      `${item.tax_rate || 0}%`,
+      formatCurrency(discount, company.currency),
+      formatCurrency(lineTotal, company.currency)
+    ]
+  })
+
   doc.autoTable({
     startY: 85,
-    head: [['#', 'Description', 'Qty', 'Unit Price', 'Tax', 'Discount', 'Total']],
+    head: [['#', 'Description', 'Qte', 'Prix Unitaire', 'Tax', 'Remise', 'Total']],
     body: tableData,
     theme: 'grid',
     headStyles: { fillColor: [41, 128, 185], textColor: 255 },
@@ -137,40 +158,51 @@ export function generateInvoicePDF(order: any, company: any, type: 'Sale' | 'Pur
   })
 
   // 5. Totals
-  // @ts-expect-error autotable types
   const finalY = doc.lastAutoTable.finalY + 10
-  
+
+  const subtotal = order.subtotal !== undefined ? order.subtotal : totalCalculated
+  const total = order.total !== undefined ? order.total : totalCalculated
+  const paid = order.paid_amount || 0
+  const due = order.due_amount || (total - paid)
+
   doc.setFontSize(10)
-  doc.text('Subtotal:', pageWidth - 60, finalY)
-  doc.text(formatCurrency(order.subtotal, company.currency), pageWidth - 14, finalY, { align: 'right' })
-  
-  doc.text('Tax Amount:', pageWidth - 60, finalY + 6)
-  doc.text(formatCurrency(order.tax_total, company.currency), pageWidth - 14, finalY + 6, { align: 'right' })
-  
-  doc.text('Discount:', pageWidth - 60, finalY + 12)
-  doc.text(`-${formatCurrency(order.discount_total, company.currency)}`, pageWidth - 14, finalY + 12, { align: 'right' })
-  
+  doc.text('Sous-total:', pageWidth - 60, finalY)
+  doc.text(formatCurrency(subtotal, company.currency), pageWidth - 14, finalY, { align: 'right' })
+
+  if (order.tax_total !== undefined) {
+    doc.text('TVA:', pageWidth - 60, finalY + 6)
+    doc.text(formatCurrency(order.tax_total, company.currency), pageWidth - 14, finalY + 6, { align: 'right' })
+  }
+
+  if (order.discount_total !== undefined) {
+    doc.text('Remise:', pageWidth - 60, finalY + 12)
+    doc.text(`-${formatCurrency(order.discount_total, company.currency)}`, pageWidth - 14, finalY + 12, { align: 'right' })
+  }
+
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
-  doc.text('Grand Total:', pageWidth - 60, finalY + 20)
-  doc.text(formatCurrency(order.total, company.currency), pageWidth - 14, finalY + 20, { align: 'right' })
+  doc.text('Total Net:', pageWidth - 60, finalY + 20)
+  doc.text(formatCurrency(total, company.currency), pageWidth - 14, finalY + 20, { align: 'right' })
 
-  // Payment Status
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Amount Paid: ${formatCurrency(order.paid_amount, company.currency)}`, 14, finalY + 10)
-  doc.text(`Due Balance: ${formatCurrency(order.due_amount, company.currency)}`, 14, finalY + 16)
-  
-  const paymentStatus = order.payment_status.toUpperCase()
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(paymentStatus === 'PAID' ? 0 : 220, paymentStatus === 'PAID' ? 128 : 53, 0)
-  doc.text(`STATUS: ${paymentStatus}`, 14, finalY + 24)
+  // Payment Status (skip for delivery note or commands without payment info)
+  if (type !== 'Delivery Note' && order.payment_status) {
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Montant Payé: ${formatCurrency(paid, company.currency)}`, 14, finalY + 10)
+    doc.text(`Reste à Payer: ${formatCurrency(due, company.currency)}`, 14, finalY + 16)
+
+    const paymentStatus = order.payment_status.toUpperCase()
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(paymentStatus === 'PAID' ? 0 : 220, paymentStatus === 'PAID' ? 128 : 53, 0)
+    doc.text(`STATUT: ${paymentStatus}`, 14, finalY + 24)
+  }
 
   // 6. Footer
   doc.setTextColor(150)
   doc.setFontSize(8)
-  doc.text('Thank you for your business!', pageWidth / 2, 280, { align: 'center' })
+  doc.setFont('helvetica', 'italic')
+  doc.text('Merci pour votre confiance.', pageWidth / 2, 280, { align: 'center' })
 
   // Save
-  doc.save(`${orderNumber}.pdf`)
+  doc.save(`${docTitle.replace(/ /g, '_')}_${orderNumber}.pdf`)
 }

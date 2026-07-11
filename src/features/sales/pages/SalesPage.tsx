@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, FileText, Download, Receipt, Eye } from 'lucide-react'
+import { Plus, Search, Filter, Eye, FileText, Receipt, Package, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,8 @@ export default function SalesPage() {
         .from('sales_orders')
         .select(`
           *,
-          customers(name)
+          customers(name, tax_id, phone),
+          sales_order_items(*, products(name), product_variants(name))
         `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false })
@@ -257,8 +258,11 @@ export default function SalesPage() {
                         <Button variant="ghost" size="icon" onClick={() => setSelectedOrderForCharges(sale)} title="View Charges">
                           <Receipt className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => generateInvoicePDF(sale, company, 'Sale')} title="Export PDF">
-                          <FileText className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => generateInvoicePDF(sale, company, 'Sale')} title="Imprimer Facture">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => generateInvoicePDF(sale, company, 'Delivery Note')} title="Imprimer Bon de Livraison">
+                          <Package className="h-4 w-4 text-green-600" />
                         </Button>
                       </div>
                     </TableCell>

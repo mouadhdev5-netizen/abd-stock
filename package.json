@@ -25,7 +25,7 @@
       "repo": "abd-stock"
     }],
     "directories": {
-      "output": "release"
+      "output": "build-release"
     },
     "win": {
       "target": "nsis"

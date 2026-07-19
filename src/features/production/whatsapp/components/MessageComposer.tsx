@@ -41,7 +41,7 @@ export function MessageComposer() {
     queryKey: ['whatsapp_sessions', company?.id],
     queryFn: async () => {
       if (!company?.id) return null
-      const { data } = await supabase.from('whatsapp_sessions').select('*').eq('company_id', company.id).eq('status', 'connected').maybeSingle()
+      const { data } = await supabase.from('whatsapp_sessions').select('*').eq('company_id', company.id).eq('is_connected', true).maybeSingle()
       return data
     },
     enabled: !!company?.id,

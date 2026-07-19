@@ -288,7 +288,7 @@ export function TemplateManager() {
       <ConfirmDialog
         open={isDeleteDialogOpen}
         onCancel={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => deleteMutation.mutate(deletingUser?.id || deletingTemplate?.id)}
+        onConfirm={() => deleteMutation.mutate(deletingTemplate?.id)}
         title={t('actions.delete', { ns: 'common', defaultValue: 'Delete' })}
         description={t('messages.delete_confirm', { ns: 'common', defaultValue: 'Are you sure you want to delete this?' })}
         confirmLabel={t('actions.delete', { ns: 'common', defaultValue: 'Delete' })}

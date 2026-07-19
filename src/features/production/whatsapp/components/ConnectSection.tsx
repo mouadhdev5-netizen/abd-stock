@@ -22,7 +22,7 @@ export function ConnectSection() {
         .from('whatsapp_sessions')
         .select('*')
         .eq('company_id', company.id)
-        .eq('status', 'connected')
+        .eq('is_connected', true)
         .maybeSingle()
       
       if (error && error.code !== 'PGRST116') throw error
@@ -46,7 +46,7 @@ export function ConnectSection() {
         .insert({
           company_id: company.id,
           phone_number: '+213555000111',
-          status: 'connected'
+          is_connected: true
         })
       
       if (error) throw error

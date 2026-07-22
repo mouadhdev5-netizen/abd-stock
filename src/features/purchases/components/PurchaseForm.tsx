@@ -182,17 +182,24 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
       if (orderError) throw orderError
 
       // 3. Insert PO Items
-      const orderItems = data.items.map(item => ({
-        po_id: (order as any).id,
-        product_id: item.product_id,
-        variant_id: item.variant_id || null,
-        quantity: item.quantity,
-        unit_cost: item.unit_cost,
-        discount_amount: item.discount,
-        tax_rate: item.tax_rate,
-        subtotal: (item.quantity * item.unit_cost) - item.discount,
-        total: (item.quantity * item.unit_cost) - item.discount + (((item.quantity * item.unit_cost) - item.discount) * (item.tax_rate / 100))
-      }))
+      const orderItems = data.items.map(item => {
+        const lineBase = item.quantity * item.unit_cost
+        const lineDiscount = item.discount || 0
+        const taxable = lineBase - lineDiscount
+        const lineTax = taxable * (item.tax_rate / 100)
+        return {
+          po_id: (order as any).id,
+          product_id: item.product_id,
+          variant_id: item.variant_id || null,
+          quantity: item.quantity,
+          unit_cost: item.unit_cost,
+          discount_amount: lineDiscount,
+          tax_rate: item.tax_rate,
+          tax_amount: lineTax,
+          subtotal: taxable,
+          total: taxable + lineTax,
+        }
+      })
 
       const { error: itemsError } = await supabase
         .from('purchase_order_items')

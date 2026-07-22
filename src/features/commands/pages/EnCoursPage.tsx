@@ -34,7 +34,7 @@ export default function EnCoursPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedCommand, setSelectedCommand] = useState<any>(null)
-  
+
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(20)
 
@@ -47,7 +47,7 @@ export default function EnCoursPage() {
         .from('commands')
         .select(`
           *,
-          customers(name, phone, address),
+          customers(name, phone),
           command_items(*, products(name), product_variants(name))
         `)
         .eq('company_id', company.id)
@@ -62,7 +62,7 @@ export default function EnCoursPage() {
   const filteredCommands = (commands as any[])?.filter(c => {
     const custName = (c.customers as any)?.name?.toLowerCase() || ''
     const tracking = (c.yalidin_tracking_id || '').toLowerCase()
-    
+
     const matchesSearch = custName.includes(searchTerm.toLowerCase()) || tracking.includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter
 
@@ -87,7 +87,7 @@ export default function EnCoursPage() {
         .from('commands')
         .update({ status: newStatus, updated_at: new Date().toISOString() } as never)
         .eq('id', commandId)
-        
+
       refetch()
     } catch (error) {
       console.error('Error updating status:', error)
@@ -99,7 +99,7 @@ export default function EnCoursPage() {
     if (!company?.id) return
     try {
       const { data: items } = await supabase.from('command_items').select('*').eq('command_id', command.id)
-      
+
       const customerNames = (command.customers?.name || 'Walk-in Customer').split(' ')
       const firstname = customerNames[0] || 'Unknown'
       const familyname = customerNames.slice(1).join(' ') || 'Unknown'
@@ -127,7 +127,7 @@ export default function EnCoursPage() {
           .from('commands')
           .update({ yalidin_tracking_id: yalidinTrackingId, status: 'confirmed' } as never)
           .eq('id', command.id)
-          
+
         alert(`Command sent to Yalidin! Tracking: ${yalidinTrackingId}`)
         refetch()
       } else {
@@ -218,8 +218,8 @@ export default function EnCoursPage() {
                       <CommandStatusBadge status={command.status} />
                     </TableCell>
                     <TableCell>
-                      <Select 
-                        value={command.status} 
+                      <Select
+                        value={command.status}
                         onValueChange={(val) => handleStatusChange(command.id, val)}
                       >
                         <SelectTrigger className="h-8">
@@ -254,7 +254,7 @@ export default function EnCoursPage() {
           </Table>
         </div>
         <div className="p-3 border-t bg-muted/20 flex-shrink-0">
-          <DataTablePagination 
+          <DataTablePagination
             pageIndex={pageIndex}
             pageSize={pageSize}
             totalCount={totalCount}

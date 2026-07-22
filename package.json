@@ -1,7 +1,7 @@
 {
   "name": "abd-stock",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "Enterprise ERP & Inventory Management System",
   "author": "ABD Stock",
@@ -19,11 +19,13 @@
   "build": {
     "appId": "com.abdstock.app",
     "productName": "ABD Stock",
-    "publish": [{
-      "provider": "github",
-      "owner": "mouadhdev5-netizen",
-      "repo": "abd-stock"
-    }],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mouadhdev5-netizen",
+        "repo": "abd-stock"
+      }
+    ],
     "directories": {
       "output": "build-release"
     },

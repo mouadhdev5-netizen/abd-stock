@@ -47,8 +47,7 @@ const salesItemSchema = z.object({
 
 const salesOrderSchema = z.object({
   customer_id: z.string().optional(), // Optional for walk-in
-  status: z.enum(['pending', 'processing', 'completed', 'delivered', 'cancelled']).default('completed'),
-  payment_status: z.enum(['pending', 'partial', 'paid']).default('paid'),
+  status: z.enum(['confirmed', 'processing', 'completed', 'cancelled', 'partial']).default('completed'),
   payment_method: z.string().default('cash'),
   amount_paid: z.coerce.number().min(0),
   discount_total: z.coerce.number().min(0).default(0),
@@ -100,7 +99,6 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     defaultValues: {
       customer_id: 'none',
       status: 'completed',
-      payment_status: 'paid',
       payment_method: 'cash',
       amount_paid: 0,
       discount_total: 0,
@@ -144,16 +142,14 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     }
   }, [formItems, discountTotal, amountPaid])
 
-  // Bug 1 Fix: Update paid amount automatically if user selects 'Paid' status or grandTotal changes
-  const paymentStatus = form.watch('payment_status')
+  // Auto-set amount_paid = grandTotal when grandTotal changes (user can still override)
+  const [isPaidInFull, setIsPaidInFull] = useState(true)
   
   useEffect(() => {
-    if (paymentStatus === 'paid') {
+    if (isPaidInFull) {
       form.setValue('amount_paid', grandTotal, { shouldValidate: true })
-    } else if (paymentStatus === 'pending') {
-      form.setValue('amount_paid', 0, { shouldValidate: true })
     }
-  }, [paymentStatus, grandTotal, form])
+  }, [grandTotal, isPaidInFull, form])
 
   const addProductToCart = (product: any) => {
     const existingIndex = formItems.findIndex(item => 
@@ -250,13 +246,11 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
           so_number: soNumber,
           customer_id: data.customer_id && data.customer_id !== 'none' ? data.customer_id : null,
           status: data.status,
-          payment_status: data.payment_status,
           subtotal,
-          tax_total: taxTotal,
-          discount_total: data.discount_total,
+          tax_amount: taxTotal,
+          discount_amount: data.discount_total,
           total: grandTotal,
           paid_amount: data.amount_paid,
-          due_amount: dueAmount,
           notes: data.notes,
         } as never)
         .select()
@@ -265,16 +259,24 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       if (orderError) throw orderError
 
       // 3. Insert Sales Order Items
-      const orderItems = data.items.map(item => ({
-        sales_order_id: (order as any).id,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount: item.discount,
-        tax_rate: item.tax_rate,
-        total: (item.quantity * item.unit_price) - item.discount + (((item.quantity * item.unit_price) - item.discount) * (item.tax_rate / 100))
-      }))
+      const orderItems = data.items.map(item => {
+        const lineBase = (item.quantity * item.unit_price)
+        const lineDiscount = item.discount || 0
+        const taxable = lineBase - lineDiscount
+        const lineTax = taxable * (item.tax_rate / 100)
+        return {
+          so_id: (order as any).id,
+          product_id: item.product_id,
+          variant_id: item.variant_id || null,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: lineDiscount,
+          tax_rate: item.tax_rate,
+          tax_amount: lineTax,
+          subtotal: taxable,
+          total: taxable + lineTax,
+        }
+      })
 
       const { error: itemsError } = await supabase
         .from('sales_order_items')
@@ -282,7 +284,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
       if (itemsError) throw itemsError
 
-      // Bug 4 Fix: Customer Debt Update
+      // Customer Debt Update: if there's a due amount, add it to customer's current_balance
       if (dueAmount > 0 && data.customer_id && data.customer_id !== 'none') {
         const { data: customerData } = await supabase
           .from('customers')
@@ -293,7 +295,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         if (customerData) {
           await supabase
             .from('customers')
-            .update({ current_balance: (customerData as any).current_balance + dueAmount } as never)
+            .update({ current_balance: ((customerData as any).current_balance || 0) + dueAmount } as never)
             .eq('id', data.customer_id)
         }
       }
@@ -479,27 +481,20 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <FormField
-                control={form.control}
-                name="payment_status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('payment_status')}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('labels.select', { ns: 'common' })} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="paid">{t('paid')}</SelectItem>
-                        <SelectItem value="partial">{t('partial')}</SelectItem>
-                        <SelectItem value="pending">{t('pending')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="paid_in_full_toggle"
+                  checked={isPaidInFull}
+                  onChange={e => {
+                    setIsPaidInFull(e.target.checked)
+                    if (e.target.checked) form.setValue('amount_paid', grandTotal)
+                    else form.setValue('amount_paid', 0)
+                  }}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="paid_in_full_toggle" className="text-sm font-medium">{t('paid')}</label>
+              </div>
 
               <FormField
                 control={form.control}

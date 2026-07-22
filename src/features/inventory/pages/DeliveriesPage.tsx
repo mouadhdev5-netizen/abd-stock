@@ -38,10 +38,10 @@ export default function DeliveriesPage() {
         .from('sales_orders')
         .select(`
           *,
-          customers(name, phone, address)
+          customers(name, phone)
         `)
         .eq('company_id', company.id)
-        .in('status', ['processing', 'delivered', 'shipped'])
+        .in('status', ['processing', 'confirmed', 'partial'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -68,8 +68,8 @@ export default function DeliveriesPage() {
       title: 'Status',
       options: [
         { label: 'Processing', value: 'processing' },
-        { label: 'Shipped', value: 'shipped' },
-        { label: 'Delivered', value: 'delivered' },
+        { label: 'Confirmed', value: 'confirmed' },
+        { label: 'Partial', value: 'partial' },
       ]
     },
     {
@@ -113,9 +113,10 @@ export default function DeliveriesPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'delivered': return <Badge variant="success">Delivered</Badge>
-      case 'shipped': return <Badge variant="default" className="bg-blue-500">In Transit</Badge>
-      case 'processing': return <Badge variant="warning">Preparing</Badge>
+      case 'completed': return <Badge variant="success">Completed</Badge>
+      case 'partial': return <Badge variant="default" className="bg-blue-500">Partial</Badge>
+      case 'processing': return <Badge variant="warning">Processing</Badge>
+      case 'confirmed': return <Badge variant="outline">Confirmed</Badge>
       default: return <Badge variant="outline">{status}</Badge>
     }
   }
@@ -189,14 +190,14 @@ export default function DeliveriesPage() {
                     <TableCell>{getStatusBadge(d.status)}</TableCell>
                     <TableCell className="text-end">
                       <div className="flex items-center justify-end gap-2">
-                        {d.status === 'processing' && (
-                          <Button size="sm" variant="outline" onClick={() => updateDeliveryStatus(d.id, 'shipped')}>
-                            <Truck className="me-2 h-4 w-4" /> Ship
+                        {d.status === 'confirmed' && (
+                          <Button size="sm" variant="outline" onClick={() => updateDeliveryStatus(d.id, 'processing')}>
+                            <Truck className="me-2 h-4 w-4" /> Start Processing
                           </Button>
                         )}
-                        {d.status === 'shipped' && (
-                          <Button size="sm" onClick={() => updateDeliveryStatus(d.id, 'delivered')}>
-                            <CheckCircle className="me-2 h-4 w-4" /> Mark Delivered
+                        {d.status === 'processing' && (
+                          <Button size="sm" onClick={() => updateDeliveryStatus(d.id, 'completed')}>
+                            <CheckCircle className="me-2 h-4 w-4" /> Mark Completed
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" title="Delivery Note (Bon de Livraison)">

@@ -1,6 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
+
+// Configure electron-log
+log.transports.file.level = 'info';
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -42,6 +48,31 @@ app.whenReady().then(() => {
   // Check for updates automatically in the background
   autoUpdater.checkForUpdatesAndNotify();
 
+  autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for update...');
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'checking-for-update' });
+  });
+  autoUpdater.on('update-available', (info) => {
+    log.info('Update available.');
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'update-available', info });
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    log.info('Update not available.');
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'update-not-available', info });
+  });
+  autoUpdater.on('error', (err) => {
+    log.info('Error in auto-updater. ' + err);
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'update-error', error: err.message });
+  });
+  autoUpdater.on('download-progress', (progressObj) => {
+    log.info('Download progress: ' + progressObj.percent + '%');
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'download-progress', progress: progressObj });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info('Update downloaded');
+    if (mainWindow) mainWindow.webContents.send('update-message', { type: 'update-downloaded', info });
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -62,6 +93,15 @@ ipcMain.handle('print-document', async (event, options) => {
     return true;
   }
   return false;
+});
+
+// AutoUpdater manual trigger IPC handlers
+ipcMain.handle('check-for-updates', () => {
+  autoUpdater.checkForUpdatesAndNotify();
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
 });
 
 // Yalidin API proxy — runs in Node.js, no CORS issues

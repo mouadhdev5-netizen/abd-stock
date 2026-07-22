@@ -1,7 +1,7 @@
 {
   "name": "abd-stock",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Enterprise ERP & Inventory Management System",
   "author": "ABD Stock",
@@ -67,6 +67,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^4.1.0",
+    "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
     "i18next": "^23.15.1",
     "i18next-browser-languagedetector": "^8.0.0",

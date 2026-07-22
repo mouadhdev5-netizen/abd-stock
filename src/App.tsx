@@ -9,6 +9,8 @@ import i18n from '@/i18n'
 import LoginPage from '@/features/auth/pages/LoginPage'
 import { AppShell } from '@/components/layout/AppShell'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+import { Toaster } from '@/components/ui/toaster'
+import { AppUpdater } from '@/components/AppUpdater'
 
 // ─── Lazy-loaded feature pages ──────────────────────────────────────────────
 
@@ -181,6 +183,8 @@ export default function App() {
 
   return (
     <HashRouter>
+      <AppUpdater />
+      <Toaster />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public */}

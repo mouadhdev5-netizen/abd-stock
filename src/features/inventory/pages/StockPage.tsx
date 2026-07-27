@@ -96,7 +96,19 @@ export default function StockPage() {
       }
     })
     
-    return Array.from(map.values()).sort((a, b) => a.product_name.localeCompare(b.product_name))
+    return Array.from(map.values()).map(parent => {
+      if (!parent.is_only_parent && parent.variants.length > 0) {
+        parent.sku = null; // hide parent sku if it has variants
+        
+        const costPrices = parent.variants.map((v: any) => v.cost_price);
+        const firstCostPrice = costPrices[0];
+        if (costPrices.every((p: number) => p === firstCostPrice)) {
+          parent.cost_price = firstCostPrice;
+          parent.has_common_cost = true;
+        }
+      }
+      return parent;
+    }).sort((a, b) => a.product_name.localeCompare(b.product_name))
   }, [filteredProducts])
 
   const totalCount = groupedProducts.length
@@ -217,7 +229,7 @@ export default function StockPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-end text-muted-foreground font-mono">
-                        {group.is_only_parent ? formatCurrency(group.cost_price, company?.currency || 'DZD') : '-'}
+                        {group.is_only_parent || group.has_common_cost ? formatCurrency(group.cost_price, company?.currency || 'DZD') : '-'}
                       </TableCell>
                       <TableCell className={`text-end font-semibold text-base ${getQtyColorClass(group.total_qty_on_hand, group.reorder_level)}`}>
                         {formatNumber(group.total_qty_on_hand)}

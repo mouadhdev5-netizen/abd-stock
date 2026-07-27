@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { algeriaWilayas } from '@/data/algeria-wilayas'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 interface QuickAddCustomerFormProps {
   onSuccess: (customerId: string, customerName: string) => void
@@ -18,6 +20,9 @@ export function QuickAddCustomerForm({ onSuccess, onCancel }: QuickAddCustomerFo
   
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [wilaya, setWilaya] = useState('')
+  const [commune, setCommune] = useState('')
+  const [address, setAddress] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,6 +50,9 @@ export function QuickAddCustomerForm({ onSuccess, onCancel }: QuickAddCustomerFo
           company_id: company.id,
           name: name.trim(),
           phone: phone.trim(),
+          wilaya: wilaya || null,
+          commune: commune.trim() || null,
+          address: address.trim() || null,
           is_active: true,
         } as never)
         .select('id, name')
@@ -85,6 +93,40 @@ export function QuickAddCustomerForm({ onSuccess, onCancel }: QuickAddCustomerFo
           value={phone}
           onChange={e => setPhone(e.target.value)}
           placeholder="e.g. 0555 12 34 56"
+          className="h-8 text-sm"
+          disabled={isSubmitting}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">{t('sales.customer_wilaya', { defaultValue: 'Wilaya' })}</Label>
+          <SearchableSelect 
+            options={algeriaWilayas.map(w => ({ value: w.code, label: `${w.code} - ${w.name_fr}` }))}
+            value={wilaya}
+            onChange={setWilaya}
+            placeholder="Select Wilaya"
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">{t('sales.customer_commune', { defaultValue: 'Commune' })}</Label>
+          <Input 
+            value={commune}
+            onChange={e => setCommune(e.target.value)}
+            placeholder="Commune"
+            className="h-8 text-sm"
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">{t('sales.customer_address', { defaultValue: 'Address' })}</Label>
+        <Input 
+          value={address}
+          onChange={e => setAddress(e.target.value)}
+          placeholder="Detailed address"
           className="h-8 text-sm"
           disabled={isSubmitting}
         />

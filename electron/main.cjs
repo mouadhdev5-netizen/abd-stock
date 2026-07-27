@@ -104,12 +104,11 @@ ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
 });
 
-// Yalidin API proxy — runs in Node.js, no CORS issues
+// DBD API proxy — runs in Node.js, no CORS issues
 const https = require('https');
 
-const YALIDIN_BASE_URL = 'api.yalidin.com';
-const YALIDIN_API_ID = process.env.YALIDIN_API_ID || 'YOUR_API_ID';
-const YALIDIN_API_TOKEN = process.env.YALIDIN_API_TOKEN || 'A2f6u0zGFoV0iprNTdICKfHhnbPQa3DySQ2hiNULhlEZDn4gzArNtrgJcPUw';
+const DBD_BASE_URL = 'platform.dhd-dz.com';
+const DBD_API_TOKEN = process.env.DBD_API_TOKEN || 'A2f6u0zGFoV0iprNTdICKfHhnbPQa3DySQ2hiNULhlEZDn4gzArNtrgJcPUw';
 
 function nodeHttpRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -134,30 +133,28 @@ ipcMain.handle('yalidin-api', async (event, { action, payload }) => {
   try {
     let result;
     const headers = {
-      'X-API-ID': YALIDIN_API_ID,
-      'X-API-TOKEN': YALIDIN_API_TOKEN,
+      'Authorization': `Bearer ${DBD_API_TOKEN}`,
       'Content-Type': 'application/json',
     };
 
     if (action === 'createShipment') {
       const body = JSON.stringify(payload);
       headers['Content-Length'] = Buffer.byteLength(body);
-      
+
       result = await nodeHttpRequest({
-        hostname: YALIDIN_BASE_URL,
-        path: '/v1/parcels/',
+        hostname: DBD_BASE_URL,
+        path: '/market/api/v1/parcels/',
         method: 'POST',
         headers,
       }, body);
     } else if (action === 'getShipmentStatus') {
       const trackingQuery = payload.join(',');
       result = await nodeHttpRequest({
-        hostname: YALIDIN_BASE_URL,
-        path: `/v1/histories/?tracking=${trackingQuery}`,
+        hostname: DBD_BASE_URL,
+        path: `/market/api/v1/histories/?tracking=${trackingQuery}`,
         method: 'GET',
         headers: {
-          'X-API-ID': YALIDIN_API_ID,
-          'X-API-TOKEN': YALIDIN_API_TOKEN,
+          'Authorization': `Bearer ${DBD_API_TOKEN}`,
         },
       }, null);
     } else {

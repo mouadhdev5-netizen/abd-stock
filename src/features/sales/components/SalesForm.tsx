@@ -32,7 +32,8 @@ import { InlineSearch } from '@/components/ui/InlineSearch'
 import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from './QuickAddCustomerForm'
 import { generateInvoicePDF } from '@/lib/export'
-
+import { useToast } from '@/hooks/use-toast'
+import { ToastAction } from '@/components/ui/toast'
 const salesItemSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
   variant_id: z.string().nullable().optional(),
@@ -67,6 +68,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   const { company } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
   const [showAddCustomer, setShowAddCustomer] = useState(false)
+  const { toast } = useToast()
 
   // Fetch Customers
   const { data: customers, refetch: refetchCustomers } = useQuery<any[]>({
@@ -161,12 +163,20 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       if (currentQty < product.total_qty_available) {
         form.setValue(`items.${existingIndex}.quantity`, currentQty + 1)
       } else {
-        alert(t('commerce:sales.stock_limit_reached', { defaultValue: 'Not enough stock available.' }))
+        toast({
+          title: t('commerce:sales.stock_limit_reached', { defaultValue: 'Stock limit reached' }),
+          description: t('commerce:sales.not_enough_stock', { defaultValue: 'Not enough stock available.' }),
+          variant: 'destructive',
+        })
       }
     } else {
       // Add new
       if (product.total_qty_available <= 0) {
-        alert(t('commerce:sales.out_of_stock', { defaultValue: 'This item is out of stock.' }))
+        toast({
+          title: t('commerce:sales.out_of_stock', { defaultValue: 'Out of stock' }),
+          description: t('commerce:sales.item_out_of_stock', { defaultValue: 'This item is out of stock.' }),
+          variant: 'destructive',
+        })
         return
       }
       append({
@@ -196,7 +206,11 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     if (data) {
       addProductToCart(data)
     } else {
-      alert(t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }))
+        toast({
+          title: "Product not found",
+          description: t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }),
+          variant: 'destructive',
+        })
       setProductSearch('')
     }
   }
@@ -221,14 +235,22 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
     
     // Empty cart guard
     if (data.items.length === 0) {
-      alert(t('commerce:sales.empty_cart', { defaultValue: 'Cannot create a sale with an empty cart.' }))
+      toast({
+        title: "Cart is empty",
+        description: t('commerce:sales.empty_cart', { defaultValue: 'Cannot create a sale with an empty cart.' }),
+        variant: 'destructive',
+      })
       return
     }
 
     // Stock validation guard
     const overstockItem = data.items.find(item => item.max_stock !== undefined && item.quantity > item.max_stock)
     if (overstockItem) {
-      alert(`Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`)
+      toast({
+        title: "Insufficient Stock",
+        description: `Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`,
+        variant: 'destructive',
+      })
       return
     }
 
@@ -300,15 +322,26 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         }
       }
       
+      
       // 3.6 Receipt After Sale
-      if (window.confirm(`Sale completed! Order: ${soNumber}\n\nWould you like to print the receipt?`)) {
-        generateInvoicePDF(order as any, company, 'Sale')
-      }
+      toast({
+        title: t('commerce:sales.sale_success', { defaultValue: 'Sale completed!', number: soNumber }),
+        description: `Order ${soNumber} has been recorded.`,
+        action: (
+          <ToastAction altText="Imprimer le reçu" onClick={() => generateInvoicePDF(order as any, company, 'Sale')}>
+            {t('commerce:sales.print_receipt', { defaultValue: 'Print Receipt' })}
+          </ToastAction>
+        ),
+      })
       
       onSuccess?.()
     } catch (error: any) {
       console.error('Error creating sale:', error)
-      alert(`Failed to create sale: ${error.message || JSON.stringify(error)}`)
+      toast({
+        title: "Error creating sale",
+        description: error.message || JSON.stringify(error),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -358,7 +391,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                             <FormItem className="w-20">
                               <FormLabel className="text-[10px] text-muted-foreground">{t('labels.quantity', { ns: 'common', defaultValue: 'Qty' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" min="1" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
+                                <Input type="number" min="1" className="h-8" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} />
                               </FormControl>
                             </FormItem>
                           )}
@@ -469,7 +502,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                   <FormItem className="flex justify-between items-center space-y-0">
                     <FormLabel className="text-sm font-normal text-muted-foreground">{t('labels.discount', { ns: 'common' })}</FormLabel>
                     <FormControl>
-                      <Input type="number" className="w-24 h-8 text-end" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <Input type="number" className="w-24 h-8 text-end" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -503,7 +536,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                   <FormItem>
                     <FormLabel>{t('amount_paid')}</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                     <div className="text-xs text-end mt-1 flex justify-end items-center gap-1">
                       {t('due')}: <span className={`font-semibold ${dueAmount > 0 ? 'text-destructive' : 'text-green-600'}`}>

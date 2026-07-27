@@ -9,6 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { exportToExcel } from '@/lib/export'
 import { format } from 'date-fns'
 
@@ -160,57 +168,65 @@ export default function StockMovementsPage() {
         />
       </div>
 
-      <div className="flex-1 overflow-auto rounded-xl border bg-card/50 shadow-sm relative flex flex-col">
-        <div className="overflow-auto flex-1 p-4 space-y-4">
-          {isLoading ? (
-            <div className="text-center py-10 text-muted-foreground">Loading activity...</div>
-          ) : paginatedMovements.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">No stock movements found.</div>
-          ) : (
-            paginatedMovements.map((m: any) => {
-              const isPositive = m.quantity > 0
-              const qtyClass = isPositive ? 'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'
-              const bgClass = isPositive ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/30' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30'
-              const icon = isPositive ? <ArrowUpRight className="h-5 w-5 text-green-600" /> : <ArrowDownRight className="h-5 w-5 text-red-600" />
-              const user = (m.profiles as any)?.full_name || 'System'
-              const baseProduct = (m.products as any)?.name || 'Unknown Product'
-              const variantName = (m.product_variants as any)?.name
-              const product = variantName ? `${baseProduct} (${variantName})` : baseProduct
-              const ref = m.ref_id || m.notes
-              
-              let actionWord = isPositive ? 'added' : 'removed'
-              if (m.movement_type === 'sale') actionWord = 'sold'
-              if (m.movement_type === 'purchase') actionWord = 'received from purchase'
-              if (m.movement_type === 'return') actionWord = 'returned'
-
-              return (
-                <div key={m.id} className={`flex items-start gap-4 p-4 rounded-lg border ${bgClass}`}>
-                  <div className="mt-1 bg-background p-2 rounded-full border shadow-sm">
-                    {icon}
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-base text-foreground">
-                      <span className="font-semibold">{user}</span> {actionWord}{' '}
-                      <span className={qtyClass}>{Math.abs(m.quantity)} units</span> of{' '}
-                      <span className="font-semibold">{product}</span>.
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{format(new Date(m.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
-                      <span>•</span>
-                      <span className="uppercase text-xs tracking-wider font-semibold opacity-70">
-                        {m.movement_type.replace('_', ' ')}
-                      </span>
-                    </div>
-                    {ref && (
-                      <p className="text-sm text-muted-foreground mt-2 italic bg-background/50 inline-block px-2 py-1 rounded">
-                        " {ref} "
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
+      <div className="flex-1 overflow-hidden rounded-xl border bg-card/50 shadow-sm relative flex flex-col">
+        <div className="overflow-auto flex-1">
+          <Table>
+            <TableHeader className="sticky top-0 bg-card z-10">
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Produit</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Quantité</TableHead>
+                <TableHead className="text-right">Stock Interne</TableHead>
+                <TableHead>Utilisateur</TableHead>
+                <TableHead>Réf / Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Loading activity...</TableCell>
+                </TableRow>
+              ) : paginatedMovements.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No stock movements found.</TableCell>
+                </TableRow>
+              ) : (
+                paginatedMovements.map((m: any) => {
+                  const isPositive = m.quantity > 0
+                  const qtyClass = isPositive ? 'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'
+                  const bgClass = isPositive ? 'bg-green-50/50 dark:bg-green-900/5' : 'bg-red-50/50 dark:bg-red-900/5'
+                  const user = (m.profiles as any)?.full_name || 'System'
+                  const baseProduct = (m.products as any)?.name || 'Unknown Product'
+                  const variantName = (m.product_variants as any)?.name
+                  const product = variantName ? `${baseProduct} (${variantName})` : baseProduct
+                  const ref = m.ref_id || m.notes || '-'
+                  
+                  return (
+                    <TableRow key={m.id} className={`${bgClass} transition-colors`}>
+                      <TableCell className="whitespace-nowrap">{format(new Date(m.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell className="font-medium">{product}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="uppercase text-[10px] tracking-wider">
+                          {m.movement_type.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={`text-right ${qtyClass}`}>
+                        {isPositive ? '+' : ''}{m.quantity}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-muted-foreground">
+                        {m.qty_after ?? '-'}
+                      </TableCell>
+                      <TableCell>{user}</TableCell>
+                      <TableCell className="text-muted-foreground max-w-[200px] truncate" title={ref}>
+                        {ref}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
         <div className="p-3 border-t bg-muted/20 flex-shrink-0">
           <DataTablePagination

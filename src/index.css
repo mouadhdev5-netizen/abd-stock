@@ -126,6 +126,7 @@
 /* Radix UI Z-Index & RTL Fixes */
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
+  pointer-events: auto !important;
 }
 
 [dir="rtl"] [data-radix-popper-content-wrapper] {

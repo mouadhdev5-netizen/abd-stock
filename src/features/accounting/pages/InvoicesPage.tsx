@@ -33,21 +33,18 @@ export default function InvoicesPage() {
   const [pageSize, setPageSize] = useState(20)
 
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ['invoices', company?.id],
+    queryKey: ['sales_orders', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
 
       const { data, error } = await supabase
-        .from('invoices')
+        .from('sales_orders')
         .select(`
           *,
-          sales_orders (
-            order_number,
-            customers (name)
-          )
+          customers (name)
         `)
         .eq('company_id', company.id)
-        .order('issued_at', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return data as any[]
@@ -80,25 +77,26 @@ export default function InvoicesPage() {
 
   // Filtering
   const filteredInvoices = invoices?.filter(i => {
-    const searchString = `${i.invoice_number} ${i.sales_orders?.customers?.name || ''}`.toLowerCase()
+    const searchString = `${i.so_number} ${i.customers?.name || ''}`.toLowerCase()
     const matchesSearch = searchString.includes(searchTerm.toLowerCase())
     
     let matchesStatus = true
     let matchesTotal = true
     let matchesDue = true
 
-    if (activeFilters['status']?.length > 0) matchesStatus = activeFilters['status'].includes(i.status)
+    if (activeFilters['status']?.length > 0) matchesStatus = activeFilters['status'].includes(i.payment_status || 'unpaid')
 
     if (activeFilters['total']) {
       const { min, max } = activeFilters['total']
-      if (min !== undefined && i.total_amount < min) matchesTotal = false
-      if (max !== undefined && i.total_amount > max) matchesTotal = false
+      if (min !== undefined && i.grand_total < min) matchesTotal = false
+      if (max !== undefined && i.grand_total > max) matchesTotal = false
     }
 
     if (activeFilters['due']) {
+      const bal = (i.payment_status === 'unpaid' || !i.payment_status) ? i.grand_total : 0
       const { min, max } = activeFilters['due']
-      if (min !== undefined && i.balance_due < min) matchesDue = false
-      if (max !== undefined && i.balance_due > max) matchesDue = false
+      if (min !== undefined && bal < min) matchesDue = false
+      if (max !== undefined && bal > max) matchesDue = false
     }
 
     return matchesSearch && matchesStatus && matchesTotal && matchesDue
@@ -201,31 +199,34 @@ export default function InvoicesPage() {
                   <TableCell colSpan={8} className="text-center py-10">{t('labels.no_data', { defaultValue: 'No data' })}</TableCell>
                 </TableRow>
               ) : (
-                paginatedInvoices?.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        {invoice.invoice_number}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {invoice.sales_orders?.customers?.name || <span className="text-muted-foreground italic">Unknown</span>}
-                    </TableCell>
-                    <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                    <TableCell>{formatDate(invoice.due_date)}</TableCell>
-                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                    <TableCell className="text-end font-medium">
-                      {formatCurrency(invoice.total_amount, company?.currency || 'DZD')}
-                    </TableCell>
-                    <TableCell className="text-end font-medium text-destructive">
-                      {formatCurrency(invoice.balance_due, company?.currency || 'DZD')}
-                    </TableCell>
-                    <TableCell className="text-end">
-                      <Button variant="ghost" size="sm">{t('actions.print', { defaultValue: 'Print' })}</Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                paginatedInvoices?.map((invoice) => {
+                  const bal = (invoice.payment_status === 'unpaid' || !invoice.payment_status) ? invoice.grand_total : 0
+                  return (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          {invoice.so_number}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {invoice.customers?.name || <span className="text-muted-foreground italic">Unknown</span>}
+                      </TableCell>
+                      <TableCell>{formatDate(invoice.created_at)}</TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell>{getStatusBadge(invoice.payment_status || 'unpaid')}</TableCell>
+                      <TableCell className="text-end font-medium">
+                        {formatCurrency(invoice.grand_total, company?.currency || 'DZD')}
+                      </TableCell>
+                      <TableCell className="text-end font-medium text-destructive">
+                        {formatCurrency(bal, company?.currency || 'DZD')}
+                      </TableCell>
+                      <TableCell className="text-end">
+                        <Button variant="ghost" size="sm">{t('actions.print', { defaultValue: 'Print' })}</Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -242,7 +243,10 @@ export default function InvoicesPage() {
           </div>
           <span className="font-semibold text-destructive whitespace-nowrap ms-4">
             {t('labels.total_unpaid', { defaultValue: 'Total Unpaid' })}: {formatCurrency(
-              filteredInvoices?.reduce((sum, i) => sum + Number(i.balance_due), 0) || 0,
+              filteredInvoices?.reduce((sum, i) => {
+                const bal = (i.payment_status === 'unpaid' || !i.payment_status) ? i.grand_total : 0
+                return sum + Number(bal)
+              }, 0) || 0,
               company?.currency || 'DZD'
             )}
           </span>

@@ -33,6 +33,10 @@ import { InlineSearch } from '@/components/ui/InlineSearch'
 import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from '@/features/sales/components/QuickAddCustomerForm'
 import { createShipment, YalidinShipmentInput } from '@/lib/yalidin'
+import { algeriaWilayas } from '@/data/algeria-wilayas'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useToast } from '@/hooks/use-toast'
 
 const commandItemSchema = z.object({
   product_id: z.string().min(1),
@@ -51,6 +55,7 @@ const commandOrderSchema = z.object({
   commune: z.string().optional().default('Alger Centre'),
   notes: z.string().optional(),
   items: z.array(commandItemSchema).min(1, 'At least one item is required'),
+  send_to_delivery: z.boolean().default(false),
 })
 
 type CommandFormValues = z.infer<typeof commandOrderSchema>
@@ -63,6 +68,7 @@ interface CommandFormProps {
 export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
   const { t } = useTranslation(['common', 'commerce'])
   const { company } = useAuthStore()
+  const { toast } = useToast()
   const [productSearch, setProductSearch] = useState('')
   const [showAddCustomer, setShowAddCustomer] = useState(false)
 
@@ -101,6 +107,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
       commune: 'Alger Centre',
       notes: '',
       items: [],
+      send_to_delivery: false,
     },
   })
 
@@ -171,13 +178,13 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
     if (!company?.id) return
 
     if (data.items.length === 0) {
-      alert(t('commerce:sales.empty_cart', { defaultValue: 'Cannot create an order with an empty cart.' }))
+      toast({ title: 'Error', description: t('commerce:sales.empty_cart', { defaultValue: 'Cannot create an order with an empty cart.' }), variant: 'destructive' })
       return
     }
 
     const overstockItem = data.items.find(item => item.max_stock !== undefined && item.quantity > item.max_stock)
     if (overstockItem) {
-      alert(`Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`)
+      toast({ title: 'Error', description: `Cannot sell ${overstockItem.quantity} of ${overstockItem.product_name}. Only ${overstockItem.max_stock} available in stock.`, variant: 'destructive' })
       return
     }
 
@@ -214,50 +221,56 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
 
       if (itemsError) throw itemsError
 
-      // 3. Yalidin API Call
-      const customer = customers?.find(c => c.id === data.customer_id)
-      const customerNames = (customer?.name || 'Walk-in Customer').split(' ')
-      const firstname = customerNames[0] || 'Unknown'
-      const familyname = customerNames.slice(1).join(' ') || 'Unknown'
-      const product_list = data.items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')
+      if (itemsError) throw itemsError
 
-      const yalidinInput: YalidinShipmentInput = {
-        order_id: (command as any).id,
-        firstname,
-        familyname,
-        contact_phone: customer?.phone || '0000000000',
-        address: data.delivery_address,
-        to_wilaya_name: data.wilaya,
-        to_commune_name: data.commune,
-        product_list,
-        price: grandTotal,
-        do_insurance: false,
-        is_free_shipping: false,
-      }
+      // 3. DBD API Call
+      if (data.send_to_delivery) {
+        const customer = customers?.find(c => c.id === data.customer_id)
+        const customerNames = (customer?.name || 'Walk-in Customer').split(' ')
+        const firstname = customerNames[0] || 'Unknown'
+        const familyname = customerNames.slice(1).join(' ') || 'Unknown'
+        const product_list = data.items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')
 
-      try {
-        const responseArray = await createShipment([yalidinInput])
-        const yalidinTrackingId = responseArray[0]?.tracking
-
-        if (yalidinTrackingId) {
-          await supabase
-            .from('commands')
-            .update({ yalidin_tracking_id: yalidinTrackingId, status: 'confirmed' } as never)
-            .eq('id', (command as any).id)
-            
-          alert(`Command Created & Sent to Yalidin! Tracking: ${yalidinTrackingId}`)
-        } else {
-          alert('Command Created internally. Yalidin did not return tracking ID.')
+        const yalidinInput: YalidinShipmentInput = {
+          order_id: (command as any).id,
+          firstname,
+          familyname,
+          contact_phone: customer?.phone || '0000000000',
+          address: data.delivery_address,
+          to_wilaya_name: data.wilaya,
+          to_commune_name: data.commune,
+          product_list,
+          price: grandTotal,
+          do_insurance: false,
+          is_free_shipping: false,
         }
-      } catch (yalidinErr: any) {
-        console.error('Yalidin error:', yalidinErr)
-        alert('Submitted internally, delivery service failed. Retry from En Cours page. Error: ' + yalidinErr.message)
+
+        try {
+          const responseArray = await createShipment([yalidinInput])
+          const yalidinTrackingId = responseArray[0]?.tracking
+
+          if (yalidinTrackingId) {
+            await supabase
+              .from('commands')
+              .update({ yalidin_tracking_id: yalidinTrackingId, status: 'confirmed' } as never)
+              .eq('id', (command as any).id)
+              
+            toast({ title: 'Success', description: `Command Created & Sent to DBD! Tracking: ${yalidinTrackingId}` })
+          } else {
+            toast({ title: 'Warning', description: 'Command Created internally. DBD did not return tracking ID.' })
+          }
+        } catch (yalidinErr: any) {
+          console.error('DBD error:', yalidinErr)
+          toast({ title: 'Warning', description: 'Submitted internally, delivery service failed. Retry from En Cours page. Error: ' + yalidinErr.message, variant: 'destructive' })
+        }
+      } else {
+        toast({ title: 'Success', description: 'Command created successfully (internal only).' })
       }
       
       onSuccess?.()
     } catch (error: any) {
       console.error('Error creating command:', error)
-      alert(`Failed to create command: ${error.message || JSON.stringify(error)}`)
+      toast({ title: 'Error', description: `Failed to create command: ${error.message || JSON.stringify(error)}`, variant: 'destructive' })
     }
   }
 
@@ -304,7 +317,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                             <FormItem className="w-20">
                               <FormLabel className="text-[10px] text-muted-foreground">{t('labels.quantity', { ns: 'common', defaultValue: 'Qty' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" min="1" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
+                                <Input type="number" min="1" className="h-8" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} />
                               </FormControl>
                             </FormItem>
                           )}
@@ -316,7 +329,7 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                             <FormItem className="w-28">
                               <FormLabel className="text-[10px] text-muted-foreground">{t('commerce:commands.unit_cost', { defaultValue: 'Unit Cost' })}</FormLabel>
                               <FormControl>
-                                <Input type="number" min="0" step="0.01" className="h-8" {...field} value={field.value === undefined ? '' : field.value} onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} />
+                                <Input type="number" min="0" step="0.01" className="h-8" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value)} />
                               </FormControl>
                             </FormItem>
                           )}
@@ -395,9 +408,14 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                 name="wilaya"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Wilaya (For Yalidin)</FormLabel>
+                    <FormLabel>Wilaya (For DBD)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <SearchableSelect
+                        options={algeriaWilayas.map(w => ({ value: w.name_fr, label: `${w.code} - ${w.name_fr}` }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select Wilaya"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -442,6 +460,26 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
                     <Textarea className="resize-none" rows={2} {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="send_to_delivery"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/20">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="cursor-pointer">
+                      Envoyer automatiquement au service de livraison (DBD)
+                    </FormLabel>
+                  </div>
                 </FormItem>
               )}
             />

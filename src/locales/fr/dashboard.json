@@ -8,6 +8,7 @@
   "kpi": {
     "total_revenue": "Chiffre d'affaires total",
     "total_profit": "Bénéfice total",
+    "total_charges": "Total des charges",
     "inventory_value": "Valeur du stock",
     "total_products": "Total produits",
     "total_customers": "Total clients",

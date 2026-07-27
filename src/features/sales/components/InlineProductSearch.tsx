@@ -23,6 +23,7 @@ export function InlineProductSearch({ companyId, onSelectProduct }: InlineProduc
         .eq('company_id', companyId)
         .eq('status', 'active')
         .order('full_name')
+        .limit(50)
       
       if (error) throw error
       return data || []
@@ -61,8 +62,7 @@ export function InlineProductSearch({ companyId, onSelectProduct }: InlineProduc
         onKeyDown={handleKeyDown}
         autoFocus
       />
-      {search.trim().length > 0 && (
-        <CommandList className="max-h-[200px] border-t">
+      <CommandList className="max-h-[200px] border-t">
           <CommandEmpty>{t('commerce:products.no_results', { defaultValue: 'No products found.' })}</CommandEmpty>
           <CommandGroup>
             {products?.map((product) => {
@@ -92,7 +92,6 @@ export function InlineProductSearch({ companyId, onSelectProduct }: InlineProduc
             })}
           </CommandGroup>
         </CommandList>
-      )}
     </Command>
   )
 }

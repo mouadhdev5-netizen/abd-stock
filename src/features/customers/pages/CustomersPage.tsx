@@ -196,10 +196,13 @@ export default function CustomersPage() {
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead>{t('labels.name', { defaultValue: 'Name' })}</TableHead>
-                <TableHead>{t('labels.phone', { defaultValue: 'Phone' })}</TableHead>
+                <TableHead>{t('labels.type', { defaultValue: 'Type' })}</TableHead>
+                <TableHead>{t('labels.phone', { defaultValue: 'Contact' })}</TableHead>
+                <TableHead>Location</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead className="text-center">{t('labels.orders', { defaultValue: 'Orders' })}</TableHead>
-                <TableHead className="text-end">Debt</TableHead>
+                <TableHead className="text-end">Balance</TableHead>
+                <TableHead className="text-end">Limit</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
@@ -207,13 +210,13 @@ export default function CustomersPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
+                  <TableCell colSpan={10} className="text-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     {t('labels.no_data', { defaultValue: 'No customers found.' })}
                   </TableCell>
                 </TableRow>
@@ -227,11 +230,20 @@ export default function CustomersPage() {
                     <TableCell className="font-medium text-primary">
                       {customer.name}
                     </TableCell>
+                    <TableCell className="capitalize">
+                      {customer.type}
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        {customer.phone || '-'}
-                        {customer.phone && <WhatsAppButton phone={customer.phone} />}
+                      <div className="flex flex-col gap-1 text-sm">
+                        <div className="flex items-center gap-2">
+                          {customer.phone || '-'}
+                          {customer.phone && <WhatsAppButton phone={customer.phone} />}
+                        </div>
+                        {customer.email && <span className="text-xs text-muted-foreground">{customer.email}</span>}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {customer.wilaya ? `${customer.wilaya}${customer.commune ? `, ${customer.commune}` : ''}` : '-'}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate" title={customer.address}>
                       {customer.address || '-'}
@@ -243,6 +255,9 @@ export default function CustomersPage() {
                       {customer.credit_balance > 0 ? (
                         <span className="text-destructive font-bold">{formatCurrency(customer.credit_balance, company?.currency || 'DZD')}</span>
                       ) : '-'}
+                    </TableCell>
+                    <TableCell className="text-end text-muted-foreground">
+                      {customer.credit_limit > 0 ? formatCurrency(customer.credit_limit, company?.currency || 'DZD') : '-'}
                     </TableCell>
                     <TableCell className="text-center">
                       {customer.is_blocked ? (

@@ -18,6 +18,8 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { algeriaWilayas } from '@/data/algeria-wilayas'
 import { CustomerPurchasesTable } from './CustomerPurchasesTable'
 import { CustomerDebtSection } from './CustomerDebtSection'
 
@@ -26,6 +28,8 @@ const customerSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
+  wilaya: z.string().optional(),
+  commune: z.string().optional(),
 })
 
 type CustomerFormValues = z.infer<typeof customerSchema>
@@ -51,6 +55,8 @@ export function CustomerDetailPanel({ customerId, isOpen, onClose, onUpdate }: C
       phone: '',
       email: '',
       address: '',
+      wilaya: '',
+      commune: '',
     },
   })
 
@@ -78,6 +84,8 @@ export function CustomerDetailPanel({ customerId, isOpen, onClose, onUpdate }: C
         phone: (data as any).phone || '',
         email: (data as any).email || '',
         address: (data as any).address || '',
+        wilaya: (data as any).wilaya || '',
+        commune: (data as any).commune || '',
       })
     }
     setIsLoading(false)
@@ -257,6 +265,41 @@ export function CustomerDetailPanel({ customerId, isOpen, onClose, onUpdate }: C
                           )}
                         />
                       </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="wilaya"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Wilaya</FormLabel>
+                              <FormControl>
+                                <SearchableSelect
+                                  options={algeriaWilayas.map(w => ({ value: w.name_fr, label: `${w.code} - ${w.name_fr}` }))}
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Select Wilaya"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="commune"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Commune</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Enter commune" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
                       <FormField
                         control={form.control}
                         name="address"

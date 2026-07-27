@@ -22,14 +22,13 @@ import {
 import { FileText, TrendingUp, DollarSign, Package } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { subDays, startOfDay, endOfDay, format } from 'date-fns'
+import { format } from 'date-fns'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#d0ed57']
 
 export default function ReportsPage() {
   const { t } = useTranslation(['common'])
   const { company } = useAuthStore()
-  const [dateRange, setDateRange] = useState('30') // 7, 30, 365
   const [branchId, setBranchId] = useState('all')
 
   // Fetch branches for filter
@@ -43,13 +42,9 @@ export default function ReportsPage() {
     enabled: !!company?.id
   })
 
-  // Date calculations
-  const startDate = startOfDay(subDays(new Date(), parseInt(dateRange) - 1))
-  const endDate = endOfDay(new Date())
-
   // Fetch Sales Data
   const { data: sales, isLoading: salesLoading } = useQuery({
-    queryKey: ['reports-sales', company?.id, dateRange, branchId],
+    queryKey: ['reports-sales', company?.id, branchId],
     queryFn: async () => {
       if (!company?.id) return []
       let query = supabase
@@ -59,8 +54,6 @@ export default function ReportsPage() {
           sales_order_items(product_id, quantity, unit_price, products(name))
         `)
         .eq('company_id', company.id)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
 
       if (branchId !== 'all') query = query.eq('branch_id', branchId)
 
@@ -73,15 +66,13 @@ export default function ReportsPage() {
 
   // Fetch Expenses Data
   const { data: expenses, isLoading: expensesLoading } = useQuery({
-    queryKey: ['reports-expenses', company?.id, dateRange, branchId],
+    queryKey: ['reports-expenses', company?.id, branchId],
     queryFn: async () => {
       if (!company?.id) return []
       let query = supabase
         .from('expenses')
         .select('amount, category, created_at')
         .eq('company_id', company.id)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
 
       if (branchId !== 'all') query = query.eq('branch_id', branchId)
 
@@ -94,13 +85,13 @@ export default function ReportsPage() {
 
   // Data Processing
   const processedData = useMemo(() => {
-    if (!sales || !expenses) return { 
-      totalRevenue: 0, 
-      totalProfit: 0, 
-      itemsSold: 0, 
-      salesTrend: [], 
-      topProducts: [], 
-      expenseBreakdown: [] 
+    if (!sales || !expenses) return {
+      totalRevenue: 0,
+      totalProfit: 0,
+      itemsSold: 0,
+      salesTrend: [],
+      topProducts: [],
+      expenseBreakdown: []
     }
 
     let totalRevenue = 0
@@ -110,7 +101,7 @@ export default function ReportsPage() {
 
     sales.forEach((order: any) => {
       if (order.status === 'cancelled') return
-      
+
       totalRevenue += order.total
       const dateStr = format(new Date(order.created_at), 'MMM dd')
       salesByDate[dateStr] = (salesByDate[dateStr] || 0) + order.total
@@ -169,18 +160,6 @@ export default function ReportsPage() {
               {branches?.map((b: any) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t('common:labels.date_range')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-              <SelectItem value="90">Last 90 Days</SelectItem>
-              <SelectItem value="365">This Year</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -244,7 +223,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                   />
@@ -303,7 +282,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
                   <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} width={150} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                     cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                   />

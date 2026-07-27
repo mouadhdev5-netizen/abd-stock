@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Eye, Filter, FileText, Package } from 'lucide-react'
+import { Search, Eye, Filter, FileText, Package, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
+import { Link } from 'react-router-dom'
 import {
   Table,
   TableBody,
@@ -128,13 +129,13 @@ export default function EnCoursPage() {
           .update({ yalidin_tracking_id: yalidinTrackingId, status: 'confirmed' } as never)
           .eq('id', command.id)
 
-        alert(`Command sent to Yalidin! Tracking: ${yalidinTrackingId}`)
+        alert(`Command sent to DBD! Tracking: ${yalidinTrackingId}`)
         refetch()
       } else {
-        alert('Yalidin did not return tracking ID.')
+        alert('DBD did not return tracking ID.')
       }
     } catch (err: any) {
-      alert('Failed to send to Yalidin: ' + err.message)
+      alert('Failed to send to DBD: ' + err.message)
     }
   }
 
@@ -143,8 +144,14 @@ export default function EnCoursPage() {
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Commands (En Cours)</h1>
-          <p className="text-muted-foreground mt-1">Manage active orders and track Yalidin deliveries.</p>
+          <p className="text-muted-foreground mt-1">Manage active orders and track DBD deliveries.</p>
         </div>
+        <Link to="/commerce/commands/new">
+          <Button>
+            <Plus className="h-4 w-4 me-2" />
+            {t('commands.new_command', { defaultValue: 'Create Command' })}
+          </Button>
+        </Link>
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-4 flex-shrink-0">

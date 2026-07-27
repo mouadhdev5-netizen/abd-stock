@@ -114,7 +114,19 @@ export default function ProductsPage() {
         .order('name')
         
       if (error) throw error
-      setExpandedVariants(data || [])
+
+      const { data: stockLevels } = await supabase
+        .from('stock_levels')
+        .select('variant_id, qty_available')
+        .eq('product_id', productId)
+
+      const merged = (data as any[])?.map((v: any) => {
+        const variantStock = (stockLevels as any[])?.filter((s: any) => s.variant_id === v.id) || []
+        const total = variantStock.reduce((acc: number, curr: any) => acc + (curr.qty_available || 0), 0)
+        return { ...v, total_qty_available: total }
+      })
+
+      setExpandedVariants(merged || [])
     } catch (err: any) {
       console.error(err)
       alert('Failed to load variants')

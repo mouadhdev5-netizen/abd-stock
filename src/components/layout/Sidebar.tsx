@@ -48,7 +48,7 @@ export function Sidebar() {
   const { t } = useTranslation(['common', 'commerce', 'production', 'admin'])
   const location = useLocation()
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
-  const { hasRole } = useAuthStore()
+  const { hasRole, company } = useAuthStore()
 
   // Track which accordion group is open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -190,9 +190,19 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex h-16 items-center justify-between border-b px-3 shrink-0">
         {!sidebarCollapsed && (
-          <span className="text-base font-bold text-sidebar-foreground truncate">
-            {t('common:app.name')}
-          </span>
+          <div className="flex items-center overflow-hidden">
+            {company?.logo_url ? (
+              <img 
+                src={company.logo_url} 
+                alt={company.name || 'Logo'} 
+                className="h-8 w-auto max-w-full object-contain mix-blend-multiply dark:mix-blend-normal" 
+              />
+            ) : (
+              <span className="text-base font-bold text-sidebar-foreground truncate">
+                {company?.name || t('common:app.name')}
+              </span>
+            )}
+          </div>
         )}
         <Button
           variant="ghost"

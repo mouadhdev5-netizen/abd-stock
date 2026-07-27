@@ -14,7 +14,7 @@ import {
   Cell,
   Legend
 } from 'recharts'
-import { format, subDays, startOfDay, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { Activity, Layers, Package, Database } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
@@ -29,14 +29,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-type DateRange = '7' | '30' | '90' | 'all'
+
 
 const COLORS = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#ede9fe']
 
 export default function ProductionDashboardPage() {
   const { t } = useTranslation(['production', 'common'])
   const { company } = useAuthStore()
-  const [dateRange, setDateRange] = useState<DateRange>('30')
+
 
   // 1. Fetch recipe executions
   const { data: executions, isLoading: isExecLoading } = useQuery({
@@ -93,14 +93,8 @@ export default function ProductionDashboardPage() {
     enabled: !!company?.id
   })
 
-  // Filtering by date
-  const filteredExecutions = useMemo(() => {
-    if (!executions) return []
-    if (dateRange === 'all') return executions
-
-    const cutoff = startOfDay(subDays(new Date(), parseInt(dateRange)))
-    return (executions as any[]).filter(e => new Date(e.executed_at) >= cutoff)
-  }, [executions, dateRange])
+  // No longer filtering by date locally
+  const filteredExecutions = executions || []
 
   // KPI Calculations
   const kpis = useMemo(() => {
@@ -195,18 +189,7 @@ export default function ProductionDashboardPage() {
             {t('production:dashboard.subtitle', { defaultValue: 'Monitor production costs and component usage.' })}
           </p>
         </div>
-        
-        <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">{t('labels.last_7_days', { ns: 'common', defaultValue: 'Last 7 days' })}</SelectItem>
-            <SelectItem value="30">{t('labels.last_30_days', { ns: 'common', defaultValue: 'Last 30 days' })}</SelectItem>
-            <SelectItem value="90">{t('labels.last_90_days', { ns: 'common', defaultValue: 'Last 90 days' })}</SelectItem>
-            <SelectItem value="all">{t('labels.all_time', { ns: 'common', defaultValue: 'All time' })}</SelectItem>
-          </SelectContent>
-        </Select>
+
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

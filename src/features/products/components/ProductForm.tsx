@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Plus, Loader2, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -61,6 +62,7 @@ interface ProductFormProps {
 export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormProps) {
   const { t } = useTranslation('commerce')
   const { company } = useAuthStore()
+  const { toast } = useToast()
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -152,11 +154,18 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         }
       }
 
-      alert(t('products.product_saved', { defaultValue: 'Product saved successfully' }))
+      toast({
+        title: "Success",
+        description: t('products.product_saved', { defaultValue: 'Product saved successfully' }),
+      })
       onSuccess?.()
     } catch (error: any) {
       console.error('Error saving product:', error)
-      alert(`Failed to save product: ${error.message || JSON.stringify(error)}`)
+      toast({
+        title: "Error",
+        description: error.message || JSON.stringify(error),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -227,7 +236,8 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         </div>
 
         {/* ROW 2: Codes */}
-        <div className="grid grid-cols-2 gap-6">
+        {!hasVariants && (
+          <div className="grid grid-cols-2 gap-6">
           <FormField
             control={form.control}
             name="sku"
@@ -254,10 +264,12 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
               </FormItem>
             )}
           />
-        </div>
+          </div>
+        )}
 
         {/* ROW 3: Pricing */}
-        <div className="grid grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border border-border/50">
+        {!hasVariants && (
+          <div className="grid grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border border-border/50">
           <FormField
             control={form.control}
             name="cost_price"
@@ -284,7 +296,8 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
               </FormItem>
             )}
           />
-        </div>
+          </div>
+        )}
 
         {/* ROW 4: Settings */}
         <div className="grid grid-cols-2 gap-6">

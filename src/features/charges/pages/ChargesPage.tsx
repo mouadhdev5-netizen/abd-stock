@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Download } from 'lucide-react'
-import { format, subDays, startOfDay } from 'date-fns'
+import { format } from 'date-fns'
 
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
@@ -29,7 +29,7 @@ import {
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
 import { ChargeForm } from '../components/ChargeForm'
 
-type DateRange = '7' | '30' | '90' | 'all'
+
 
 export default function ChargesPage() {
   const { t } = useTranslation(['commerce', 'common'])
@@ -38,7 +38,7 @@ export default function ChargesPage() {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<string>('all')
-  const [dateRange, setDateRange] = useState<DateRange>('30')
+
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -62,7 +62,7 @@ export default function ChargesPage() {
     queryKey: ['product_charges', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
-      
+
       // JIT generate any missing interval charges
       try {
         // @ts-ignore - Supabase type definitions might not have this RPC yet
@@ -92,23 +92,13 @@ export default function ChargesPage() {
   const filteredCharges = useMemo(() => {
     if (!charges) return []
 
-    const cutoffDate = dateRange !== 'all' 
-      ? startOfDay(subDays(new Date(), parseInt(dateRange)))
-      : null
-
     return (charges as any[]).filter(c => {
       const matchSearch = c.description.toLowerCase().includes(searchTerm.toLowerCase())
       const matchProduct = selectedProduct === 'all' || c.product_id === selectedProduct
-      
-      let matchDate = true
-      if (cutoffDate) {
-        const chargeDate = new Date(c.charge_date)
-        matchDate = chargeDate >= cutoffDate
-      }
 
-      return matchSearch && matchProduct && matchDate
+      return matchSearch && matchProduct
     })
-  }, [charges, searchTerm, selectedProduct, dateRange])
+  }, [charges, searchTerm, selectedProduct])
 
   const totalAmount = useMemo(() => {
     return filteredCharges.reduce((sum, c) => sum + Number(c.amount || 0), 0)
@@ -121,7 +111,7 @@ export default function ChargesPage() {
 
   useEffect(() => {
     setPageIndex(0)
-  }, [searchTerm, selectedProduct, dateRange])
+  }, [searchTerm, selectedProduct])
 
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)]">
@@ -173,19 +163,7 @@ export default function ChargesPage() {
             ))}
           </SelectContent>
         </Select>
-
-        <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">{t('labels.last_7_days', { ns: 'common', defaultValue: 'Last 7 days' })}</SelectItem>
-            <SelectItem value="30">{t('labels.last_30_days', { ns: 'common', defaultValue: 'Last 30 days' })}</SelectItem>
-            <SelectItem value="90">{t('labels.last_90_days', { ns: 'common', defaultValue: 'Last 90 days' })}</SelectItem>
-            <SelectItem value="all">{t('labels.all_time', { ns: 'common', defaultValue: 'All time' })}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        </div>
 
       {/* Table */}
       <div className="border rounded-md bg-card flex-1 overflow-hidden flex flex-col">

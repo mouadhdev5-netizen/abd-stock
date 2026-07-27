@@ -27,12 +27,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { algeriaWilayas } from '@/data/algeria-wilayas'
+import { useToast } from '@/hooks/use-toast'
 
 const customerSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   trade_name: z.string().optional(),
   type: z.enum(['individual', 'business']),
   tax_id: z.string().optional(),
+  wilaya: z.string().optional(),
+  commune: z.string().optional(),
+  address: z.string().optional(),
   contact_name: z.string().optional(),
   phone: z.string().optional(),
   mobile: z.string().optional(),
@@ -54,6 +60,7 @@ interface CustomerFormProps {
 export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormProps) {
   const { t } = useTranslation('common')
   const { company } = useAuthStore()
+  const { toast } = useToast()
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -62,6 +69,9 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
       trade_name: '',
       type: 'individual',
       tax_id: '',
+      wilaya: '',
+      commune: '',
+      address: '',
       contact_name: '',
       phone: '',
       mobile: '',
@@ -97,7 +107,7 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
       onSuccess?.()
     } catch (error: any) {
       console.error('Error saving customer:', error)
-      alert(`Failed to save customer: ${error.message || JSON.stringify(error)}`)
+      toast({ title: 'Error', description: `Failed to save customer: ${error.message || JSON.stringify(error)}`, variant: 'destructive' })
     }
   }
 
@@ -177,6 +187,54 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
                   )}
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="wilaya"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wilaya</FormLabel>
+                      <FormControl>
+                        <SearchableSelect
+                          options={algeriaWilayas.map(w => ({ value: w.name_fr, label: `${w.code} - ${w.name_fr}` }))}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Wilaya"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="commune"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commune</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter commune" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="123 Street Name..." className="resize-none" rows={2} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

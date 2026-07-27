@@ -20,14 +20,20 @@ import { format, subDays, parseISO, eachDayOfInterval } from 'date-fns'
 import { fr, ar, enUS } from 'date-fns/locale'
 import { useSettingsStore } from '@/store/settingsStore'
 
+import { Input } from '@/components/ui/input'
+
 // ─── Types ───────────────────────────────────────────────────────────────────
-type DateRange = '7' | '30' | '90'
+interface DateRange {
+  from: Date
+  to: Date
+}
 
 interface KpiData {
   totalSales: number
   totalRevenue: number
   totalItemsSold: number
   totalStock: number
+  totalCharges: number
 }
 
 interface ChartPoint {
@@ -41,11 +47,6 @@ interface BestCustomer {
   name: string
   order_count: number
   total_spent: number
-}
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-function useStartDate(range: DateRange): Date {
-  return useMemo(() => subDays(new Date(), parseInt(range)), [range])
 }
 
 // ─── Product Filter Select ────────────────────────────────────────────────────
@@ -261,18 +262,23 @@ export default function DashboardPage() {
   const companyId = company?.id ?? ''
   const currency = (company as any)?.currency || 'DZD'
 
-  const [dateRange, setDateRange] = useState<DateRange>('30')
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: subDays(new Date(), 30),
+    to: new Date()
+  })
   const [productFilter, setProductFilter] = useState<string>('all')
-  const startDate = useStartDate(dateRange)
 
-  const startDateStr = startDate.toISOString()
+  const startDateStr = dateRange.from.toISOString()
+  const endDateStr = new Date(dateRange.to).setHours(23, 59, 59, 999) 
+    ? new Date(new Date(dateRange.to).setHours(23, 59, 59, 999)).toISOString()
+    : new Date().toISOString()
   const activeProduct = productFilter === 'all' ? null : productFilter
 
   // ── KPI Query ──────────────────────────────────────────────────────────────
   const { data: kpiData, isLoading: kpiLoading } = useQuery<KpiData>({
-    queryKey: ['commerce-kpis', companyId, dateRange, productFilter],
+    queryKey: ['commerce-kpis', companyId, startDateStr, endDateStr, productFilter],
     queryFn: async () => {
-      if (!companyId) return { totalSales: 0, totalRevenue: 0, totalItemsSold: 0, totalStock: 0 }
+      if (!companyId) return { totalSales: 0, totalRevenue: 0, totalItemsSold: 0, totalStock: 0, totalCharges: 0 }
 
       let totalSales = 0
       let totalRevenue = 0
@@ -286,6 +292,7 @@ export default function DashboardPage() {
           .eq('sales_orders.company_id', companyId)
           .neq('sales_orders.status', 'cancelled')
           .gte('sales_orders.created_at', startDateStr)
+          .lte('sales_orders.created_at', endDateStr)
           .eq('product_id', activeProduct)
 
         totalRevenue = (items || []).reduce((sum: number, i: any) => sum + (i.total || 0), 0)
@@ -300,6 +307,7 @@ export default function DashboardPage() {
           .eq('company_id', companyId)
           .neq('status', 'cancelled')
           .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
 
         totalRevenue = (salesOrders || []).reduce((sum: number, o: any) => sum + (o.total || 0), 0)
         totalSales = count || 0
@@ -310,6 +318,7 @@ export default function DashboardPage() {
           .eq('sales_orders.company_id', companyId)
           .neq('sales_orders.status', 'cancelled')
           .gte('sales_orders.created_at', startDateStr)
+          .lte('sales_orders.created_at', endDateStr)
 
         totalItemsSold = (items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)
       }
@@ -338,14 +347,29 @@ export default function DashboardPage() {
         totalStock = (stockData || []).reduce((sum: number, m: any) => sum + (m.quantity || 0), 0)
       }
 
-      return { totalSales, totalRevenue, totalItemsSold, totalStock: Math.max(0, totalStock) }
+      // Charges
+      let chargesQuery = (supabase as any)
+        .from('product_charges')
+        .select('amount')
+        .eq('company_id', companyId)
+        .gte('charge_date', dateRange.from.toISOString().split('T')[0])
+        .lte('charge_date', dateRange.to.toISOString().split('T')[0])
+
+      if (activeProduct) {
+        chargesQuery = chargesQuery.eq('product_id', activeProduct)
+      }
+      
+      const { data: chargesRows } = await chargesQuery
+      const totalCharges = (chargesRows || []).reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+
+      return { totalSales, totalRevenue, totalItemsSold, totalStock: Math.max(0, totalStock), totalCharges }
     },
     enabled: !!companyId,
   })
 
   // ── Chart Query ────────────────────────────────────────────────────────────
   const { data: chartData = [], isLoading: chartLoading } = useQuery<ChartPoint[]>({
-    queryKey: ['commerce-chart', companyId, dateRange, productFilter],
+    queryKey: ['commerce-chart', companyId, startDateStr, endDateStr, productFilter],
     queryFn: async () => {
       if (!companyId) return []
 
@@ -353,7 +377,7 @@ export default function DashboardPage() {
       const dateLocale = localeMap[language] || fr
 
       // Build date range array
-      const days = eachDayOfInterval({ start: startDate, end: new Date() })
+      const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to })
       const dayMap: Record<string, ChartPoint> = {}
       days.forEach(d => {
         const key = format(d, 'dd/MM', { locale: dateLocale })
@@ -368,6 +392,7 @@ export default function DashboardPage() {
           .eq('sales_orders.company_id', companyId)
           .neq('sales_orders.status', 'cancelled')
           .gte('sales_orders.created_at', startDateStr)
+          .lte('sales_orders.created_at', endDateStr)
           .eq('product_id', activeProduct)
 
         ;(oi || []).forEach((item: any) => {
@@ -381,6 +406,7 @@ export default function DashboardPage() {
           .eq('company_id', companyId)
           .neq('status', 'cancelled')
           .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
 
         ;(orders || []).forEach((o: any) => {
           const key = format(parseISO(o.created_at), 'dd/MM', { locale: dateLocale })
@@ -388,12 +414,12 @@ export default function DashboardPage() {
         })
       }
 
-      // Costs per day from product_charges
       let costsQuery = (supabase as any)
         .from('product_charges')
         .select('amount, charge_date')
         .eq('company_id', companyId)
-        .gte('charge_date', startDate.toISOString().split('T')[0])
+        .gte('charge_date', dateRange.from.toISOString().split('T')[0])
+        .lte('charge_date', dateRange.to.toISOString().split('T')[0])
 
       if (activeProduct) {
         costsQuery = costsQuery.eq('product_id', activeProduct)
@@ -412,7 +438,7 @@ export default function DashboardPage() {
 
   // ── Best Customers Query ───────────────────────────────────────────────────
   const { data: bestCustomers = [], isLoading: customersLoading } = useQuery<BestCustomer[]>({
-    queryKey: ['commerce-best-customers', companyId, dateRange, productFilter],
+    queryKey: ['commerce-best-customers', companyId, startDateStr, endDateStr, productFilter],
     queryFn: async () => {
       if (activeProduct) {
         const { data: items } = await (supabase as any)
@@ -421,6 +447,7 @@ export default function DashboardPage() {
           .eq('sales_orders.company_id', companyId)
           .neq('sales_orders.status', 'cancelled')
           .gte('sales_orders.created_at', startDateStr)
+          .lte('sales_orders.created_at', endDateStr)
           .not('sales_orders.customer_id', 'is', null)
           .eq('product_id', activeProduct)
 
@@ -456,6 +483,7 @@ export default function DashboardPage() {
           .eq('company_id', companyId)
           .neq('status', 'cancelled')
           .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
           .not('customer_id', 'is', null)
 
         // Aggregate by customer
@@ -478,10 +506,10 @@ export default function DashboardPage() {
     enabled: !!companyId,
   })
 
-  const rangeOptions: { value: DateRange; label: string }[] = [
-    { value: '7', label: t('dashboard.last_7_days') },
-    { value: '30', label: t('dashboard.last_30_days') },
-    { value: '90', label: t('dashboard.last_90_days') },
+  const rangeOptions: { value: number; label: string }[] = [
+    { value: 7, label: t('dashboard.last_7_days') },
+    { value: 30, label: t('dashboard.last_30_days') },
+    { value: 90, label: t('dashboard.last_90_days') },
   ]
 
   return (
@@ -501,15 +529,25 @@ export default function DashboardPage() {
 
         {/* Date range */}
         <div className="flex items-center gap-1 rounded-lg border bg-card p-1">
+          <Input 
+            type="date" 
+            className="h-8 w-auto border-none shadow-none text-xs" 
+            value={dateRange.from.toISOString().split('T')[0]} 
+            onChange={(e) => setDateRange(prev => ({ ...prev, from: new Date(e.target.value) }))}
+          />
+          <span className="text-muted-foreground text-xs">-</span>
+          <Input 
+            type="date" 
+            className="h-8 w-auto border-none shadow-none text-xs" 
+            value={dateRange.to.toISOString().split('T')[0]} 
+            onChange={(e) => setDateRange(prev => ({ ...prev, to: new Date(e.target.value) }))}
+          />
+          <div className="w-px h-5 bg-border mx-1" />
           {rangeOptions.map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setDateRange(opt.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                dateRange === opt.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              onClick={() => setDateRange({ from: subDays(new Date(), opt.value), to: new Date() })}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all text-muted-foreground hover:text-foreground hover:bg-muted/50`}
             >
               {opt.label}
             </button>
@@ -518,7 +556,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <SectionCard
           title={t('dashboard.total_sales')}
           value={kpiLoading ? '—' : formatNumber(kpiData?.totalSales ?? 0, 0)}
@@ -545,6 +583,13 @@ export default function DashboardPage() {
           value={kpiLoading ? '—' : formatNumber(kpiData?.totalStock ?? 0, 0)}
           icon={<Archive className="h-5 w-5" />}
           color="purple"
+          isLoading={kpiLoading}
+        />
+        <SectionCard
+          title={t('dashboard.total_charges', 'Total Charges')}
+          value={kpiLoading ? '—' : formatCurrency(kpiData?.totalCharges ?? 0, currency)}
+          icon={<TrendingDown className="h-5 w-5" />}
+          color="red"
           isLoading={kpiLoading}
         />
       </div>

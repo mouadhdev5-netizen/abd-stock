@@ -123,10 +123,16 @@ export function ProductVariantRow({ variant, onStatusToggle, onUpdate }: Product
         {variant.sku && <p className="text-xs text-muted-foreground">{variant.sku}</p>}
       </div>
       
-      <div className="flex-1 grid grid-cols-3 gap-4 text-sm">
+      <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">{t('products.barcode', { defaultValue: 'Barcode' })}</span>
           <span>{variant.barcode || '-'}</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">{t('products.stock', { defaultValue: 'Stock' })}</span>
+          <span className={(variant.total_qty_available ?? 0) <= 5 ? 'text-destructive font-medium' : ''}>
+            {variant.total_qty_available ?? 0}
+          </span>
         </div>
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">{t('products.cost_price', { defaultValue: 'Cost' })}</span>

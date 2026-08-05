@@ -17,11 +17,18 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { exportToExcel } from '@/lib/export'
+import { exportToExcel, generateInvoicePDF } from '@/lib/export'
 import { AdvancedFilter, FilterConfig } from '@/components/ui/AdvancedFilter'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
 import { SupplierInvoicesTab } from '../components/SupplierInvoicesTab'
 import { DeliveriesTab } from '../components/DeliveriesTab'
+
+// Helper to determine payment status
+function getPaymentStatus(invoice: any) {
+  if (invoice.due_amount <= 0) return 'paid'
+  if (invoice.paid_amount > 0) return 'partial'
+  return 'unpaid'
+}
 
 export default function InvoicesPage() {
   const { t } = useTranslation('common')
@@ -41,7 +48,8 @@ export default function InvoicesPage() {
         .from('sales_orders')
         .select(`
           *,
-          customers (name)
+          customers(name, tax_id, phone),
+          sales_order_items(*, products(name), product_variants(name))
         `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false })
@@ -84,16 +92,18 @@ export default function InvoicesPage() {
     let matchesTotal = true
     let matchesDue = true
 
-    if (activeFilters['status']?.length > 0) matchesStatus = activeFilters['status'].includes(i.payment_status || 'unpaid')
+    const paymentStatus = getPaymentStatus(i)
+
+    if (activeFilters['status']?.length > 0) matchesStatus = activeFilters['status'].includes(paymentStatus)
 
     if (activeFilters['total']) {
       const { min, max } = activeFilters['total']
-      if (min !== undefined && i.grand_total < min) matchesTotal = false
-      if (max !== undefined && i.grand_total > max) matchesTotal = false
+      if (min !== undefined && i.total < min) matchesTotal = false
+      if (max !== undefined && i.total > max) matchesTotal = false
     }
 
     if (activeFilters['due']) {
-      const bal = (i.payment_status === 'unpaid' || !i.payment_status) ? i.grand_total : 0
+      const bal = i.due_amount || 0
       const { min, max } = activeFilters['due']
       if (min !== undefined && bal < min) matchesDue = false
       if (max !== undefined && bal > max) matchesDue = false
@@ -200,7 +210,8 @@ export default function InvoicesPage() {
                 </TableRow>
               ) : (
                 paginatedInvoices?.map((invoice) => {
-                  const bal = (invoice.payment_status === 'unpaid' || !invoice.payment_status) ? invoice.grand_total : 0
+                  const bal = invoice.due_amount || 0
+                  const paymentStatus = getPaymentStatus(invoice)
                   return (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
@@ -214,15 +225,15 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell>{formatDate(invoice.created_at)}</TableCell>
                       <TableCell>-</TableCell>
-                      <TableCell>{getStatusBadge(invoice.payment_status || 'unpaid')}</TableCell>
+                      <TableCell>{getStatusBadge(paymentStatus)}</TableCell>
                       <TableCell className="text-end font-medium">
-                        {formatCurrency(invoice.grand_total, company?.currency || 'DZD')}
+                        {formatCurrency(invoice.total, company?.currency || 'DZD')}
                       </TableCell>
                       <TableCell className="text-end font-medium text-destructive">
                         {formatCurrency(bal, company?.currency || 'DZD')}
                       </TableCell>
                       <TableCell className="text-end">
-                        <Button variant="ghost" size="sm">{t('actions.print', { defaultValue: 'Print' })}</Button>
+                        <Button variant="ghost" size="sm" onClick={() => generateInvoicePDF(invoice, company, 'Sale')}>{t('actions.print', { defaultValue: 'Print' })}</Button>
                       </TableCell>
                     </TableRow>
                   )
@@ -243,10 +254,7 @@ export default function InvoicesPage() {
           </div>
           <span className="font-semibold text-destructive whitespace-nowrap ms-4">
             {t('labels.total_unpaid', { defaultValue: 'Total Unpaid' })}: {formatCurrency(
-              filteredInvoices?.reduce((sum, i) => {
-                const bal = (i.payment_status === 'unpaid' || !i.payment_status) ? i.grand_total : 0
-                return sum + Number(bal)
-              }, 0) || 0,
+              filteredInvoices?.reduce((sum, i) => sum + (i.due_amount || 0), 0) || 0,
               company?.currency || 'DZD'
             )}
           </span>

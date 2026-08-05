@@ -65,7 +65,7 @@ interface SalesFormProps {
 
 export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   const { t } = useTranslation(['common', 'commerce'])
-  const { company } = useAuthStore()
+  const { company, user } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const { toast } = useToast()
@@ -127,7 +127,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       const lineDiscount = item.discount
       const taxableAmount = lineTotal - lineDiscount
       const lineTax = taxableAmount * (item.tax_rate / 100)
-      
+
       sub += taxableAmount
       tax += lineTax
     })
@@ -146,7 +146,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
   // Auto-set amount_paid = grandTotal when grandTotal changes (user can still override)
   const [isPaidInFull, setIsPaidInFull] = useState(true)
-  
+
   useEffect(() => {
     if (isPaidInFull) {
       form.setValue('amount_paid', grandTotal, { shouldValidate: true })
@@ -154,7 +154,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
   }, [grandTotal, isPaidInFull, form])
 
   const addProductToCart = (product: any) => {
-    const existingIndex = formItems.findIndex(item => 
+    const existingIndex = formItems.findIndex(item =>
       item.product_id === product.product_id && item.variant_id === product.variant_id
     )
     if (existingIndex >= 0) {
@@ -202,15 +202,15 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       .eq('company_id', company.id)
       .eq('barcode', barcode)
       .single()
-      
+
     if (data) {
       addProductToCart(data)
     } else {
-        toast({
-          title: "Product not found",
-          description: t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }),
-          variant: 'destructive',
-        })
+      toast({
+        title: "Product not found",
+        description: t('commerce:sales.product_not_found_barcode', { defaultValue: `No product found for barcode: ${barcode}` }),
+        variant: 'destructive',
+      })
       setProductSearch('')
     }
   }
@@ -224,7 +224,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
       .ilike('full_name', `%${query}%`)
       .limit(1)
       .single()
-      
+
     if (data) {
       addProductToCart(data)
     }
@@ -232,7 +232,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
   async function onSubmit(data: SalesOrderFormValues) {
     if (!company?.id) return
-    
+
     // Empty cart guard
     if (data.items.length === 0) {
       toast({
@@ -256,7 +256,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
     try {
       // 1. Generate SO Number
-      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '')
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const randomStr = Math.floor(1000 + Math.random() * 9000)
       const soNumber = `SO-${dateStr}-${randomStr}`
 
@@ -273,8 +273,8 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
           discount_amount: data.discount_total,
           total: grandTotal,
           paid_amount: data.amount_paid,
-          notes: data.notes,
-        } as never)
+          notes: data.notes || null,
+        } as any)
         .select()
         .single()
 
@@ -306,6 +306,29 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
 
       if (itemsError) throw itemsError
 
+      // 3.5 Deduct stock if order is completed or processing
+      if (data.status === 'completed' || data.status === 'processing') {
+        const { data: wh } = await supabase.from('warehouses').select('id').eq('company_id', company.id).limit(1).single()
+        const defaultWarehouseId = (wh as any)?.id
+
+        if (defaultWarehouseId) {
+          for (const item of orderItems) {
+            const { error: moveErr } = await supabase.rpc('fn_update_stock_level', {
+              p_company_id: company.id,
+              p_product_id: item.product_id,
+              p_variant_id: item.variant_id || null,
+              p_warehouse_id: defaultWarehouseId,
+              p_quantity: -Number(item.quantity), // Negative for sale
+              p_unit_cost: Number(item.unit_price),
+              p_movement_type: 'sale',
+              p_notes: `Sale ${soNumber}`,
+              p_created_by: user?.id || null
+            } as any)
+            if (moveErr) console.error('Failed to deduct stock for', item.product_id, moveErr)
+          }
+        }
+      }
+
       // Customer Debt Update: if there's a due amount, add it to customer's current_balance
       if (dueAmount > 0 && data.customer_id && data.customer_id !== 'none') {
         const { data: customerData } = await supabase
@@ -313,7 +336,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
           .select('current_balance')
           .eq('id', data.customer_id)
           .single()
-          
+
         if (customerData) {
           await supabase
             .from('customers')
@@ -321,8 +344,8 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
             .eq('id', data.customer_id)
         }
       }
-      
-      
+
+
       // 3.6 Receipt After Sale
       toast({
         title: t('commerce:sales.sale_success', { defaultValue: 'Sale completed!', number: soNumber }),
@@ -333,7 +356,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
           </ToastAction>
         ),
       })
-      
+
       onSuccess?.()
     } catch (error: any) {
       console.error('Error creating sale:', error)
@@ -382,7 +405,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                           Subtotal: <span className="font-medium text-foreground">{formatCurrency(qty * price, company?.currency || 'DZD')}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-3 w-full sm:w-auto">
                         <FormField
                           control={form.control}
@@ -403,14 +426,14 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                             <FormItem className="w-28">
                               <FormLabel className="text-[10px] text-muted-foreground">{t('commerce:sales.price_override', { defaultValue: 'Unit Price' })}</FormLabel>
                               <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.01" 
+                                <Input
+                                  type="number"
+                                  step="0.01"
                                   min="0"
                                   className={`h-8 ${isPriceOverridden ? 'border-orange-400 focus-visible:ring-orange-400' : ''}`}
-                                  {...field} 
-                                  value={field.value === undefined ? '' : field.value} 
-                                  onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)} 
+                                  {...field}
+                                  value={field.value === undefined ? '' : field.value}
+                                  onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                                 />
                               </FormControl>
                             </FormItem>
@@ -434,7 +457,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
         <div className="w-full md:w-[350px] space-y-4">
           <div className="border rounded-md p-4 bg-card shadow-sm space-y-4">
             <h3 className="font-semibold border-b pb-2">{t('checkout_details')}</h3>
-            
+
             <FormField
               control={form.control}
               name="customer_id"
@@ -454,9 +477,9 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
                       ))}
                       {/* Fixed bottom option to add new customer */}
                       <div className="p-1 mt-1 border-t">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
+                        <Button
+                          type="button"
+                          variant="ghost"
                           className="w-full justify-start text-sm h-8 font-normal"
                           onClick={(e) => {
                             e.preventDefault()
@@ -474,7 +497,7 @@ export function SalesForm({ onSuccess, onCancel }: SalesFormProps) {
             />
 
             {showAddCustomer && (
-              <QuickAddCustomerForm 
+              <QuickAddCustomerForm
                 onSuccess={(newId, newName) => {
                   refetchCustomers().then(() => {
                     form.setValue('customer_id', newId)

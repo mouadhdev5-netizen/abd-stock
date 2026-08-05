@@ -40,7 +40,7 @@ const purchaseItemSchema = z.object({
 
 const purchaseOrderSchema = z.object({
   supplier_id: z.string().min(1, 'Supplier is required'),
-  status: z.enum(['pending', 'processing', 'approved', 'received', 'cancelled']).default('received'),
+  status: z.enum(['draft', 'pending', 'approved', 'ordered', 'partial', 'received', 'cancelled']).default('received'),
   payment_status: z.enum(['pending', 'partial', 'paid']).default('paid'),
   payment_method: z.string().default('cash'),
   amount_paid: z.coerce.number().min(0),
@@ -58,7 +58,7 @@ interface PurchaseFormProps {
 
 export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
   const { t } = useTranslation(['commerce', 'common'])
-  const { company } = useAuthStore()
+  const { company, user } = useAuthStore()
   const [productSearch, setProductSearch] = useState('')
 
   // Fetch Suppliers
@@ -168,13 +168,13 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
           company_id: company.id,
           po_number: poNumber,
           supplier_id: data.supplier_id,
-          status: data.status,
+          status: data.status as "draft" | "pending" | "approved" | "ordered" | "partial" | "received" | "cancelled",
           subtotal: subtotal,
           tax_amount: taxTotal,
           discount_amount: data.discount_total,
           total: grandTotal,
           paid_amount: data.amount_paid,
-          notes: data.notes,
+          notes: data.notes || null,
         } as any)
         .select()
         .single()
@@ -206,6 +206,29 @@ export function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
         .insert(orderItems as any)
 
       if (itemsError) throw itemsError
+
+      // 3.5 Add stock if order is received
+      if (data.status === 'received') {
+        const { data: wh } = await supabase.from('warehouses').select('id').eq('company_id', company.id).limit(1).single()
+        const defaultWarehouseId = (wh as any)?.id
+        
+        if (defaultWarehouseId) {
+          for (const item of orderItems) {
+            const { error: moveErr } = await supabase.rpc('fn_update_stock_level', {
+              p_company_id: company.id,
+              p_product_id: item.product_id,
+              p_variant_id: item.variant_id || null,
+              p_warehouse_id: defaultWarehouseId,
+              p_quantity: Number(item.quantity), // Positive for purchase
+              p_unit_cost: Number(item.unit_cost),
+              p_movement_type: 'purchase',
+              p_notes: `Purchase ${poNumber}`,
+              p_created_by: user?.id || null
+            } as any)
+            if (moveErr) console.error('Failed to add stock for', item.product_id, moveErr)
+          }
+        }
+      }
 
       onSuccess?.()
     } catch (error: any) {

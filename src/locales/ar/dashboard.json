@@ -8,6 +8,7 @@
   "kpi": {
     "total_revenue": "إجمالي الإيرادات",
     "total_profit": "إجمالي الأرباح",
+    "total_charges": "إجمالي المصاريف",
     "inventory_value": "قيمة المخزون",
     "total_products": "إجمالي المنتجات",
     "total_customers": "إجمالي العملاء",

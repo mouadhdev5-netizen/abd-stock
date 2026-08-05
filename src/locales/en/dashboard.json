@@ -1,0 +1,32 @@
+{
+  "title": "Dashboard",
+  "welcome": "Welcome, {{name}}",
+  "today": "Today",
+  "this_week": "This week",
+  "this_month": "This month",
+  "this_year": "This year",
+  "kpi": {
+    "total_revenue": "Total Revenue",
+    "total_profit": "Total Profit",
+    "total_charges": "Total Expenses",
+    "inventory_value": "Inventory Value",
+    "total_products": "Total Products",
+    "total_customers": "Total Customers",
+    "total_suppliers": "Total Suppliers",
+    "sales_today": "Sales Today",
+    "sales_month": "Sales This Month",
+    "purchases_month": "Purchases This Month",
+    "pending_deliveries": "Pending Deliveries",
+    "low_stock": "Low Stock",
+    "out_of_stock": "Out of Stock"
+  },
+  "charts": {
+    "sales_trend": "Sales Trend",
+    "top_products": "Top Products",
+    "sales_by_category": "Sales by Category",
+    "revenue_vs_profit": "Revenue vs Profit"
+  },
+  "recent_sales": "Recent Sales",
+  "low_stock_products": "Low Stock Products",
+  "recent_activity": "Recent Activity"
+}

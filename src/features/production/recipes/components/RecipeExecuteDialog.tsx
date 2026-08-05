@@ -72,23 +72,31 @@ export function RecipeExecuteDialog({ recipe, isOpen, onClose, onSuccess }: Reci
         if (compErr) throw new Error(`Failed to update component ${item.component?.name}: ${compErr.message}`)
       }
 
-      // 2. Insert stock movements for products
+      // 2. Add produced products to stock using RPC
       const outputs = recipe.recipe_outputs || []
+      
+      let defaultWarehouseId = null
+      if (outputs.length > 0) {
+        const { data: wh } = await supabase.from('warehouses').select('id').eq('company_id', company.id).limit(1).single() as any
+        defaultWarehouseId = wh?.id
+      }
+
       for (const out of outputs) {
         if (!out.product_id) continue
         
-        const { error: moveErr } = await supabase
-          .from('stock_movements')
-          .insert({
-            product_id: out.product_id,
-            variant_id: out.variant_id,
-            company_id: company.id,
-            quantity: Number(out.quantity_produced),
-            transaction_type: 'recipe',
-            reference_id: `REC-${recipe.id.substring(0, 8)}`,
-            unit_cost: 0, // Could be calculated from components + charges
-            created_by: user.id
-          } as never)
+        if (!defaultWarehouseId) throw new Error('No warehouse found to receive products')
+
+        const { error: moveErr } = await supabase.rpc('fn_update_stock_level', {
+          p_company_id: company.id,
+          p_product_id: out.product_id,
+          p_variant_id: out.variant_id || null,
+          p_warehouse_id: defaultWarehouseId,
+          p_quantity: Number(out.quantity_produced),
+          p_unit_cost: 0,
+          p_movement_type: 'adjustment',
+          p_notes: `REC-${recipe.id.substring(0, 8)}`,
+          p_created_by: user.id || null
+        } as any)
           
         if (moveErr) throw new Error(`Failed to create stock movement: ${moveErr.message}`)
       }

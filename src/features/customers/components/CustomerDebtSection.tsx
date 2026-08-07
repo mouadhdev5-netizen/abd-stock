@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useToast } from '@/hooks/use-toast'
 
 const paymentSchema = z.object({
   amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
@@ -47,6 +48,7 @@ interface CustomerDebtSectionProps {
 export function CustomerDebtSection({ customer, onUpdate }: CustomerDebtSectionProps) {
   const { t } = useTranslation(['commerce', 'common'])
   const { company } = useAuthStore()
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
 
   const { data: payments, isLoading, refetch } = useQuery({
@@ -99,14 +101,14 @@ export function CustomerDebtSection({ customer, onUpdate }: CustomerDebtSectionP
 
       if (updateError) throw updateError
 
-      alert('Payment recorded successfully')
+      toast({ title: 'Payment Recorded', description: 'Payment recorded successfully', variant: 'success' })
       form.reset()
       setShowForm(false)
       refetch()
       onUpdate()
     } catch (error: any) {
       console.error('Error recording payment:', error)
-      alert(`Failed to record payment: ${error.message}`)
+      toast({ title: 'Error', description: `Failed to record payment: ${error.message}`, variant: 'destructive' })
     }
   }
 

@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { useToast } from '@/hooks/use-toast'
 
 const chargeSchema = z.object({
@@ -179,33 +180,29 @@ export function ChargeForm({ isOpen, onClose, onSuccess }: ChargeFormProps) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="date_from"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('commerce:charges.charge_date', { defaultValue: 'From Date' })} *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="date_to"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('commerce:charges.date_to', { defaultValue: 'To Date' })} *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+
+            <FormField
+              control={form.control}
+              name="date_from"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Date Range *</FormLabel>
+                  <FormControl>
+                    <DateRangePicker
+                      from={form.watch('date_from')}
+                      to={form.watch('date_to')}
+                      onChange={(range) => {
+                        if (range.from) form.setValue('date_from', range.from)
+                        if (range.to) form.setValue('date_to', range.to)
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
 
             <FormField
               control={form.control}

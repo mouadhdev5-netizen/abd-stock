@@ -34,6 +34,7 @@ import { ProductCombobox } from '@/components/ui/ProductCombobox'
 import { QuickAddCustomerForm } from '@/features/sales/components/QuickAddCustomerForm'
 import { createShipment, YalidinShipmentInput } from '@/lib/yalidin'
 import { algeriaWilayas } from '@/data/algeria-wilayas'
+import { algeriaCommunes } from '@/data/algeria-communes'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
@@ -115,6 +116,17 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
     name: 'items',
     control: form.control,
   })
+
+  // ── Auto-fill customer fields on customer select ──────────────────────────
+  const handleCustomerSelect = (customerId: string) => {
+    form.setValue('customer_id', customerId)
+    const customer = customers?.find(c => c.id === customerId)
+    if (customer) {
+      if (customer.wilaya) form.setValue('wilaya', customer.wilaya)
+      if (customer.commune) form.setValue('commune', customer.commune)
+      if (customer.address) form.setValue('delivery_address', customer.address)
+    }
+  }
 
   const formItems = useWatch({ name: 'items', control: form.control }) || []
 
@@ -359,31 +371,15 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Customer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers?.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                      <div className="p-1 mt-1 border-t">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          className="w-full justify-start text-sm h-8 font-normal"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setShowAddCustomer(true)
-                          }}
-                        >
-                          ➕ Add new customer
-                        </Button>
-                      </div>
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <SearchableSelect
+                      options={(customers || []).map(c => ({ value: c.id, label: c.name + (c.phone ? ` — ${c.phone}` : '') }))}
+                      value={field.value}
+                      onChange={handleCustomerSelect}
+                      placeholder="Select Customer"
+                      searchPlaceholder="Type to search customers..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -424,15 +420,28 @@ export function CommandForm({ onSuccess, onCancel }: CommandFormProps) {
               <FormField
                 control={form.control}
                 name="commune"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Commune</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedWilaya = form.watch('wilaya')
+                  const wilayaObj = algeriaWilayas.find(w => w.name_fr === selectedWilaya)
+                  const communeOptions = wilayaObj
+                    ? (algeriaCommunes[wilayaObj.code] || []).map(c => ({ value: c, label: c }))
+                    : []
+                  return (
+                    <FormItem>
+                      <FormLabel>Commune</FormLabel>
+                      <FormControl>
+                        <SearchableSelect
+                          options={communeOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder={selectedWilaya ? 'Select commune...' : 'Select wilaya first'}
+                          searchPlaceholder="Type commune name..."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
             </div>
 

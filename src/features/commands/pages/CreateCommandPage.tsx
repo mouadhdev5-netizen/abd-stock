@@ -26,11 +26,11 @@ export default function CreateCommandPage() {
   const { company } = useAuthStore()
   const [isCreating, setIsCreating] = useState(false)
 
-  const { data: recentCommands, isLoading } = useQuery({
+  const { data: recentCommands, isLoading, refetch } = useQuery({
     queryKey: ['commands_recent', company?.id],
     queryFn: async () => {
       if (!company?.id) return []
-      
+
       const sevenDaysAgo = subDays(new Date(), 7).toISOString()
 
       const { data, error } = await supabase
@@ -46,7 +46,7 @@ export default function CreateCommandPage() {
       if (error) throw error
       return data
     },
-    enabled: !!company?.id && !isCreating,
+    enabled: !!company?.id,
   })
 
   return (
@@ -73,7 +73,7 @@ export default function CreateCommandPage() {
             {isCreating ? 'Create Command' : 'Recent Commands'}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {isCreating 
+            {isCreating
               ? 'Create a new order and automatically dispatch it to Yalidin.'
               : 'Recent commands from the last 7 days.'}
           </p>
@@ -89,7 +89,10 @@ export default function CreateCommandPage() {
       <Card>
         <CardContent className="pt-6">
           {isCreating ? (
-            <CommandForm onSuccess={() => setIsCreating(false)} />
+            <CommandForm onSuccess={() => {
+              setIsCreating(false)
+              refetch()
+            }} />
           ) : (
             <div className="overflow-auto border rounded-md">
               <Table>

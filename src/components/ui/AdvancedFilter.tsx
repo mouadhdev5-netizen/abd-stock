@@ -1,12 +1,14 @@
-import { Filter, X, ChevronDown, Check } from 'lucide-react'
+import { useState } from 'react'
+import { Filter, X, Check, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover.tsx'
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import {
   Command,
   CommandEmpty,
@@ -14,8 +16,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
-} from '@/components/ui/command.tsx'
+} from '@/components/ui/command'
+import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { cn } from '@/lib/utils'
 
 export interface FilterOption {
@@ -27,7 +29,7 @@ export interface FilterOption {
 export interface FilterConfig {
   key: string
   title: string
-  type?: 'select' | 'number_range'
+  type?: 'select' | 'number_range' | 'date_range'
   options?: FilterOption[]
 }
 
@@ -39,182 +41,196 @@ interface AdvancedFilterProps {
 }
 
 export function AdvancedFilter({ filters, activeFilters, onFilterChange, onClearAll }: AdvancedFilterProps) {
+  const [open, setOpen] = useState(false)
+
   const activeCount = Object.keys(activeFilters).filter(k => {
     const val = activeFilters[k]
     if (Array.isArray(val)) return val.length > 0
-    if (typeof val === 'object' && val !== null) return val.min !== undefined || val.max !== undefined
+    if (typeof val === 'object' && val !== null) {
+      return val.min !== undefined || val.max !== undefined || val.from !== undefined || val.to !== undefined
+    }
     return false
   }).length
 
-  const renderBadge = (filter: FilterConfig) => {
-    const val = activeFilters[filter.key]
-    if (!val) return null
-
-    if (filter.type === 'number_range') {
-      if (val.min !== undefined && val.max !== undefined) {
-        return <Badge variant="secondary" className="rounded-sm px-1 font-normal">{val.min} - {val.max}</Badge>
-      } else if (val.min !== undefined) {
-        return <Badge variant="secondary" className="rounded-sm px-1 font-normal">&gt; {val.min}</Badge>
-      } else if (val.max !== undefined) {
-        return <Badge variant="secondary" className="rounded-sm px-1 font-normal">&lt; {val.max}</Badge>
-      }
-    } else {
-      // Select
-      if (val.length > 2) {
-        return <Badge variant="secondary" className="rounded-sm px-1 font-normal">{val.length} selected</Badge>
-      } else if (val.length > 0) {
-        return filter.options
-          ?.filter((opt) => val.includes(opt.value))
-          .map((opt) => (
-            <Badge variant="secondary" key={opt.value} className="rounded-sm px-1 font-normal">
-              {opt.label}
-            </Badge>
-          ))
-      }
-    }
-    return null
-  }
-
-  const renderPopoverContent = (filter: FilterConfig) => {
-    if (filter.type === 'number_range') {
+  const renderFilterControl = (filter: FilterConfig) => {
+    if (filter.type === 'date_range') {
       const current = activeFilters[filter.key] || {}
       return (
-        <div className="p-4 space-y-4 w-[250px]">
-          <div className="space-y-2">
-            <h4 className="font-medium text-sm leading-none">{filter.title} Range</h4>
-            <p className="text-xs text-muted-foreground">Set minimum and maximum values.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              placeholder="Min"
-              value={current.min || ''}
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : undefined
-                onFilterChange(filter.key, { ...current, min: val })
-              }}
-            />
-            <span className="text-muted-foreground">-</span>
-            <Input
-              type="number"
-              placeholder="Max"
-              value={current.max || ''}
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : undefined
-                onFilterChange(filter.key, { ...current, max: val })
-              }}
-            />
-          </div>
-          {(current.min !== undefined || current.max !== undefined) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-xs h-8"
-              onClick={() => onFilterChange(filter.key, undefined)}
-            >
-              Clear
-            </Button>
-          )}
+        <div className="space-y-2">
+          <DateRangePicker
+            from={current.from}
+            to={current.to}
+            onChange={(range) => onFilterChange(filter.key, range)}
+          />
         </div>
       )
     }
 
-    // Default: Select
+    if (filter.type === 'number_range') {
+      const current = activeFilters[filter.key] || {}
+      return (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            placeholder="Min"
+            value={current.min ?? ''}
+            className="w-full rounded-md border border-input px-3 py-2 text-sm"
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : undefined
+              onFilterChange(filter.key, { ...current, min: val })
+            }}
+          />
+          <span className="text-muted-foreground shrink-0">–</span>
+          <input
+            type="number"
+            placeholder="Max"
+            value={current.max ?? ''}
+            className="w-full rounded-md border border-input px-3 py-2 text-sm"
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : undefined
+              onFilterChange(filter.key, { ...current, max: val })
+            }}
+          />
+        </div>
+      )
+    }
+
+    // Default: select (multi)
+    const selectedValues: string[] = activeFilters[filter.key] || []
     return (
       <Command>
-        <CommandInput placeholder={filter.title} />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+        <CommandInput placeholder={`Search ${filter.title.toLowerCase()}...`} />
+        <CommandList className="max-h-[200px]">
+          <CommandEmpty>No results.</CommandEmpty>
           <CommandGroup>
             {filter.options?.map((option) => {
-              const isSelected = activeFilters[filter.key]?.includes(option.value)
+              const isSelected = selectedValues.includes(option.value)
               return (
                 <CommandItem
                   key={option.value}
+                  value={option.label}
                   onSelect={() => {
-                    const current = activeFilters[filter.key] || []
                     const updated = isSelected
-                      ? current.filter((val: string) => val !== option.value)
-                      : [...current, option.value]
+                      ? selectedValues.filter(v => v !== option.value)
+                      : [...selectedValues, option.value]
                     onFilterChange(filter.key, updated)
                   }}
+                  className="cursor-pointer"
                 >
-                  <div
-                    className={cn(
-                      "me-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                      isSelected
-                        ? "bg-primary text-primary-foreground"
-                        : "opacity-50 [&_svg]:invisible"
-                    )}
-                  >
-                    <Check className={cn("h-4 w-4")} />
+                  <div className={cn(
+                    "me-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                    isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                  )}>
+                    <Check className={cn("h-3 w-3", isSelected ? "opacity-100" : "opacity-0")} />
                   </div>
-                  {option.icon && (
-                    <option.icon className="me-2 h-4 w-4 text-muted-foreground" />
-                  )}
+                  {option.icon && <option.icon className="me-2 h-4 w-4 text-muted-foreground" />}
                   <span>{option.label}</span>
                 </CommandItem>
               )
             })}
           </CommandGroup>
-          {activeFilters[filter.key]?.length > 0 && (
-            <>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem
-                  onSelect={() => onFilterChange(filter.key, undefined)}
-                  className="justify-center text-center"
-                >
-                  Clear filters
-                </CommandItem>
-              </CommandGroup>
-            </>
-          )}
         </CommandList>
       </Command>
     )
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2 border-r pe-2 me-2">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Filters</span>
-      </div>
+    <>
+      {/* Trigger Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          "h-9 gap-2 border-dashed transition-colors",
+          activeCount > 0 && "border-primary/60 bg-primary/5 text-primary"
+        )}
+        onClick={() => setOpen(true)}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        <span>Filters</span>
+        {activeCount > 0 && (
+          <Badge className="h-5 min-w-5 px-1.5 text-xs bg-primary text-primary-foreground rounded-full">
+            {activeCount}
+          </Badge>
+        )}
+      </Button>
 
-      {filters.map((filter) => {
-        const hasActive =
-          (filter.type === 'number_range' && (activeFilters[filter.key]?.min !== undefined || activeFilters[filter.key]?.max !== undefined)) ||
-          (filter.type !== 'number_range' && activeFilters[filter.key]?.length > 0)
-
-        return (
-          <Popover key={filter.key}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 border-dashed">
-                {filter.title}
-                {hasActive && (
-                  <>
-                    <span className="mx-2 h-4 w-[1px] bg-border" />
-                    <div className="flex gap-1">
-                      {renderBadge(filter)}
-                    </div>
-                  </>
+      {/* Side Sheet */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="w-[360px] sm:w-[400px] flex flex-col">
+          <SheetHeader className="shrink-0">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeCount > 0 && (
+                  <Badge className="h-5 min-w-5 px-1.5 text-xs">
+                    {activeCount} active
+                  </Badge>
                 )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className={filter.type === 'number_range' ? 'w-auto p-0' : 'w-[200px] p-0'} align="start">
-              {renderPopoverContent(filter)}
-            </PopoverContent>
-          </Popover>
-        )
-      })}
+              </SheetTitle>
+              {activeCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-destructive hover:text-destructive"
+                  onClick={onClearAll}
+                >
+                  <X className="h-3 w-3 me-1" />
+                  Clear all
+                </Button>
+              )}
+            </div>
+            <SheetDescription>
+              Refine your results using the filters below.
+            </SheetDescription>
+          </SheetHeader>
 
-      {activeCount > 0 && (
-        <Button variant="ghost" size="sm" onClick={onClearAll} className="h-8 px-2 lg:px-3 text-destructive hover:text-destructive">
-          Clear All
-          <X className="ms-2 h-4 w-4" />
-        </Button>
-      )}
-    </div>
+          <div className="flex-1 overflow-y-auto py-4 space-y-6">
+            {filters.map((filter) => {
+              const hasActive = (() => {
+                const val = activeFilters[filter.key]
+                if (!val) return false
+                if (Array.isArray(val)) return val.length > 0
+                if (typeof val === 'object') {
+                  return Object.values(val).some(v => v !== undefined && v !== null && v !== '')
+                }
+                return false
+              })()
+
+              return (
+                <div key={filter.key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{filter.title}</span>
+                    {hasActive && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground"
+                        onClick={() => onFilterChange(filter.key, filter.type === 'select' ? [] : {})}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className={cn(
+                    "rounded-md border bg-muted/20 overflow-hidden transition-all",
+                    filter.type === 'date_range' || filter.type === 'number_range' ? "p-2" : ""
+                  )}>
+                    {renderFilterControl(filter)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="shrink-0 pt-4 border-t">
+            <Button className="w-full" onClick={() => setOpen(false)}>
+              Apply Filters
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

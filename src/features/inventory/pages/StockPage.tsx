@@ -239,17 +239,15 @@ export default function StockPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          {group.is_only_parent && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => setAdjustTarget({ product: group.original_product })}
-                            >
-                              <Settings2 className="h-4 w-4 me-1" />
-                              <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => setAdjustTarget({ product: group.original_product || group, variant: undefined })}
+                          >
+                            <Settings2 className="h-4 w-4 me-1" />
+                            <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -278,17 +276,7 @@ export default function StockPage() {
                           {getStockBadge(variant.total_qty_on_hand, variant.reorder_level)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => setAdjustTarget({ product: variant, variant: variant })}
-                            >
-                              <Settings2 className="h-4 w-4 me-1" />
-                              <span className="hidden sm:inline">{t('commerce:inventory.adjust', { defaultValue: 'Adjust' })}</span>
-                            </Button>
-                          </div>
+                          {/* No adjust button on variant rows - adjust from parent */}
                         </TableCell>
                       </TableRow>
                     ))}

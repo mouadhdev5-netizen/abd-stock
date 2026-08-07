@@ -29,6 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { algeriaWilayas } from '@/data/algeria-wilayas'
+import { algeriaCommunes } from '@/data/algeria-communes'
 import { useToast } from '@/hooks/use-toast'
 
 const customerSchema = z.object({
@@ -210,15 +211,28 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
                 <FormField
                   control={form.control}
                   name="commune"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Commune</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter commune" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const selectedWilaya = form.watch('wilaya')
+                    const wilayaObj = algeriaWilayas.find(w => w.name_fr === selectedWilaya)
+                    const communeOptions = wilayaObj
+                      ? (algeriaCommunes[wilayaObj.code] || []).map(c => ({ value: c, label: c }))
+                      : []
+                    return (
+                      <FormItem>
+                        <FormLabel>Commune</FormLabel>
+                        <FormControl>
+                          <SearchableSelect
+                            options={communeOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={selectedWilaya ? 'Select commune...' : 'Select wilaya first'}
+                            searchPlaceholder="Type commune name..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
               </div>
 

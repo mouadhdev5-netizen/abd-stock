@@ -36,12 +36,14 @@ import { exportToExcel } from '@/lib/export'
 import { InlineSearch } from '@/components/ui/InlineSearch'
 import { StatusToggle } from '@/components/ui/StatusToggle'
 import { DataTablePagination } from '@/components/ui/DataTablePagination'
+import { useToast } from '@/hooks/use-toast'
 
 export default function ProductsPage() {
   const { t } = useTranslation('commerce')
   const { company } = useAuthStore()
   const currency = company?.currency || 'DZD'
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -59,7 +61,7 @@ export default function ProductsPage() {
 
   // Pagination
   const [pageIndex, setPageIndex] = useState(0)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(100)
 
   // ─── Query Products ──────────────────────────────────────────────────────────
   const { data: products, isLoading, refetch } = useQuery({
@@ -80,18 +82,46 @@ export default function ProductsPage() {
         .select('id, has_variants, name_ar, name_fr, status')
         .eq('company_id', company.id)
 
+      const { data: rawVariants } = await supabase
+        .from('product_variants')
+        .select('product_id, sell_price, cost_price')
+        .eq('company_id', company.id)
+
       const productMap = (rawProducts || []).reduce((acc: any, p: any) => {
         acc[p.id] = p
         return acc
       }, {})
 
-      return (data as any[]).map(p => ({
-        ...p,
-        has_variants: productMap[p.product_id]?.has_variants || false,
-        name_ar: productMap[p.product_id]?.name_ar || '',
-        name_fr: productMap[p.product_id]?.name_fr || '',
-        status: productMap[p.product_id]?.status || 'active',
-      }))
+      const variantMap = (rawVariants || []).reduce((acc: any, v: any) => {
+        if (!acc[v.product_id]) acc[v.product_id] = []
+        acc[v.product_id].push(v)
+        return acc
+      }, {})
+
+      return (data as any[]).map(p => {
+        const variants = variantMap[p.product_id] || []
+        const hasVariants = productMap[p.product_id]?.has_variants || false
+        
+        let unifiedSellPrice = undefined
+        let unifiedCostPrice = undefined
+
+        if (hasVariants && variants.length > 0) {
+          const firstSell = variants[0].sell_price
+          const firstCost = variants[0].cost_price
+          if (variants.every((v: any) => v.sell_price === firstSell)) unifiedSellPrice = firstSell
+          if (variants.every((v: any) => v.cost_price === firstCost)) unifiedCostPrice = firstCost
+        }
+
+        return {
+          ...p,
+          has_variants: hasVariants,
+          name_ar: productMap[p.product_id]?.name_ar || '',
+          name_fr: productMap[p.product_id]?.name_fr || '',
+          status: productMap[p.product_id]?.status || 'active',
+          unified_sell_price: unifiedSellPrice,
+          unified_cost_price: unifiedCostPrice,
+        }
+      })
     },
     enabled: !!company?.id,
   })
@@ -129,7 +159,7 @@ export default function ProductsPage() {
       setExpandedVariants(merged || [])
     } catch (err: any) {
       console.error(err)
-      alert('Failed to load variants')
+      toast({ title: 'Error', description: 'Failed to load variants', variant: 'destructive' })
     } finally {
       setIsLoadingVariants(false)
     }
@@ -183,10 +213,10 @@ export default function ProductsPage() {
         .eq('id', productId)
       if (error) throw error
       
-      alert(t('products.status_updated', { defaultValue: 'Status updated' }))
+      toast({ title: 'Success', description: t('products.status_updated', { defaultValue: 'Status updated' }), variant: 'success' })
       refetch()
     } catch (err) {
-      alert(t('common.error', { defaultValue: 'An error occurred' }))
+      toast({ title: 'Error', description: t('common.error', { defaultValue: 'An error occurred' }), variant: 'destructive' })
     }
   }
 
@@ -207,7 +237,7 @@ export default function ProductsPage() {
       
       queryClient.invalidateQueries({ queryKey: ['products'] })
     } catch (err: any) {
-      alert(`Failed to delete product: ${err.message}`)
+      toast({ title: 'Error', description: `Failed to delete: ${err.message}`, variant: 'destructive' })
     }
   }
   
@@ -222,7 +252,7 @@ export default function ProductsPage() {
       
       setExpandedVariants(prev => prev.map(v => v.id === variantId ? { ...v, is_active: newIsActive } : v))
     } catch (err: any) {
-      alert(err.message || 'An error occurred')
+      toast({ title: 'Error', description: err.message || 'An error occurred', variant: 'destructive' })
     }
   }
 
@@ -245,11 +275,11 @@ export default function ProductsPage() {
       if (formattedData.length > 0) {
         const { error } = await supabase.from('products').insert(formattedData as any)
         if (error) throw error
-        alert(`Imported ${formattedData.length} products`)
+        toast({ title: 'Success', description: `Imported ${formattedData.length} products`, variant: 'success' })
         refetch()
       }
     } catch (err) {
-      alert('Failed to import products')
+      toast({ title: 'Error', description: 'Failed to import products', variant: 'destructive' })
     } finally {
       setIsImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -427,10 +457,14 @@ export default function ProductsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-end font-medium text-primary">
-                        {formatCurrency(product.sell_price, currency)}
+                        {product.has_variants 
+                          ? (product.unified_sell_price !== undefined ? formatCurrency(product.unified_sell_price, currency) : '—')
+                          : formatCurrency(product.sell_price, currency)}
                       </TableCell>
                       <TableCell className="text-end text-muted-foreground text-sm">
-                        {formatCurrency(product.cost_price, currency)}
+                        {product.has_variants
+                          ? (product.unified_cost_price !== undefined ? formatCurrency(product.unified_cost_price, currency) : '—')
+                          : formatCurrency(product.cost_price, currency)}
                       </TableCell>
                       <TableCell className="text-end">
                         <span className={`font-semibold ${product.total_qty_on_hand <= (product.reorder_level || 5) ? 'text-destructive' : ''}`}>
@@ -460,7 +494,7 @@ export default function ProductsPage() {
                       </TableCell>
                     </TableRow>
 
-                    {/* Inline Variants */}
+                    {/* Inline Variants — proper sub-table */}
                     {expandedProductId === product.product_id && (
                       <TableRow className="bg-muted/5 border-b-2 border-primary/20">
                         <TableCell colSpan={8} className="p-0">
@@ -471,27 +505,38 @@ export default function ProductsPage() {
                               ) : expandedVariants.length === 0 ? (
                                 <div className="p-4 text-sm text-muted-foreground text-center">No variants found.</div>
                               ) : (
-                                <div>
-                                  {expandedVariants.map(variant => (
-                                    <ProductVariantRow 
-                                      key={variant.id} 
-                                      variant={variant} 
-                                      onStatusToggle={handleVariantStatusToggle}
-                                      onUpdate={() => {
-                                        // Re-fetch variants to reflect changes immediately
-                                        toggleVariants(product.product_id)
-                                        setTimeout(() => toggleVariants(product.product_id), 10)
-                                      }}
-                                    />
-                                  ))}
-                                  <div className="p-2 border-t bg-muted/10 flex justify-center">
-                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleEditClick(product)}>
-                                      <Plus className="h-3 w-3 me-1" />
-                                      {t('products.add_variant', { defaultValue: 'Add Variant' })}
-                                    </Button>
-                                  </div>
-                                </div>
+                                <Table>
+                                  <TableHeader className="bg-muted/30">
+                                    <TableRow>
+                                      <TableHead className="text-xs py-2">Variant</TableHead>
+                                      <TableHead className="text-xs py-2">SKU</TableHead>
+                                      <TableHead className="text-xs py-2 text-end">Sell Price</TableHead>
+                                      <TableHead className="text-xs py-2 text-end">Cost Price</TableHead>
+                                      <TableHead className="text-xs py-2 text-end">Stock</TableHead>
+                                      <TableHead className="text-xs py-2 text-center">Status</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {expandedVariants.map(variant => (
+                                      <ProductVariantRow
+                                        key={variant.id}
+                                        variant={variant}
+                                        onStatusToggle={handleVariantStatusToggle}
+                                        onUpdate={() => {
+                                          toggleVariants(product.product_id)
+                                          setTimeout(() => toggleVariants(product.product_id), 10)
+                                        }}
+                                      />
+                                    ))}
+                                  </TableBody>
+                                </Table>
                               )}
+                              <div className="p-2 border-t bg-muted/10 flex justify-center">
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleEditClick(product)}>
+                                  <Plus className="h-3 w-3 me-1" />
+                                  {t('products.add_variant', { defaultValue: 'Add Variant' })}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </TableCell>
